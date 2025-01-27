@@ -2,6 +2,7 @@ import curses
 from typing import TYPE_CHECKING, Any
 
 from soundboard_fuck.ui.abstract_panel import AbstractPanel
+from soundboard_fuck.ui.base.panel_placement import PanelPlacement
 
 
 if TYPE_CHECKING:
@@ -33,6 +34,9 @@ class TopPanel(AbstractPanel):
         self.set_line(0, 0, f"Filter: {self.state.query}", width=self.width - 28)
         self.set_line(self.width - 40, 0, f"Re-press mode: {self.state.repress_mode.value}")
         self.set_line(self.width - 15, 0, "Help: Alt+H")
+
+    def get_placement(self, parent):
+        return PanelPlacement(x=0, y=0, width=parent.width, height=2, parent=parent)
 
     def on_state_change(self, name: str, value: Any):
         if name in ("query", "repress_mode"):

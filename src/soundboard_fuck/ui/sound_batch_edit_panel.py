@@ -2,9 +2,12 @@ from soundboard_fuck.data.category import Category
 from soundboard_fuck.db.abstractdb import AbstractDb
 from soundboard_fuck.state import State
 from soundboard_fuck.ui.abstract_panel import AbstractPanel
+from soundboard_fuck.ui.base.panel_placement import CenteredPanelPlacement
 
 
 class SoundBatchEditPanel(AbstractPanel):
+    create_hidden = True
+
     def __init__(self, state: State, db: AbstractDb, z_index = 0):
         self.db = db
         super().__init__(state=state, border=True, z_index=z_index)
@@ -17,6 +20,9 @@ class SoundBatchEditPanel(AbstractPanel):
         self.set_line(0, 0, "Select a category:")
         for idx, cat in enumerate(self.categories):
             self.set_line(0, 2 + idx, f"{idx}. {cat.name}")
+
+    def get_placement(self, parent):
+        return CenteredPanelPlacement(parent=parent, width=80, height=10)
 
     def on_state_change(self, name, value):
         if name == "show_sound_batch_edit":

@@ -5,6 +5,8 @@ from abc import ABC, abstractmethod
 from functools import total_ordering
 from typing import TYPE_CHECKING, Self
 
+from soundboard_fuck.ui.base.panel_placement import PanelPlacement
+from soundboard_fuck.ui.base.size import Size
 from soundboard_fuck.utils import coerce_at_least
 
 
@@ -14,16 +16,25 @@ if TYPE_CHECKING:
 
 
 @total_ordering
-class Panel(ABC):
+class Panel(ABC):  # pylint: disable=too-many-public-methods
     screen: "Screen"
-    z_index: int
-    border: bool
+    z_index: int = 0
+    border: bool = False
+    create_hidden: bool = False
     panel: "curses.panel._Curses_Panel"  # pylint: disable=no-member
     window: curses.window
 
-    def __init__(self, border: bool = False, z_index: int = 0):
-        self.z_index = z_index
-        self.border = border
+    def __init__(self, border: bool | None = None, z_index: int | None = None, create_hidden: bool | None = None):
+        if z_index is not None:
+            self.z_index = z_index
+        if border is not None:
+            self.border = border
+        if create_hidden is not None:
+            self.create_hidden = create_hidden
+
+    @property
+    def height(self) -> int:
+        return self.window.getmaxyx()[0]
 
     @property
     def is_visible(self) -> bool:
@@ -33,24 +44,20 @@ class Panel(ABC):
     def width(self) -> int:
         return self.window.getmaxyx()[1]
 
-    @property
-    def height(self) -> int:
-        return self.window.getmaxyx()[0]
+    def __eq__(self, other):
+        return other is self
 
     def __lt__(self, other: Self):
         return self.z_index < other.z_index
 
-    def __eq__(self, other):
-        return other is self
-
-    def attach(self, screen: "Screen", window: curses.window, show: bool = True):
+    def attach(self, screen: "Screen", window: curses.window):
         self.screen = screen
         self.window = window
         window.erase()
         if self.border:
             window.box()
         self.panel = curses.panel.new_panel(window)
-        if not show:
+        if self.create_hidden:
             self.hide(refresh=False)
         self.setup()
 
@@ -59,6 +66,10 @@ class Panel(ABC):
 
     @abstractmethod
     def contents(self):
+        ...
+
+    @abstractmethod
+    def get_placement(self, parent: Size) -> PanelPlacement:
         ...
 
     def hide(self, refresh: bool = True):
@@ -79,8 +90,10 @@ class Panel(ABC):
     def redraw(self, force: bool = False):
         self.screen.redraw_panel(self, force)
 
-    def resize(self, width: int, height: int):
-        self.window.resize(height, width)
+    def resize(self, parent: Size):
+        placement = self.get_placement(parent)
+        self.window.resize(placement.height, placement.width)
+        self.move(placement.x, placement.y)
 
     def set_line(
         self,

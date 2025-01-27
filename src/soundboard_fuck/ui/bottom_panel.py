@@ -2,6 +2,7 @@ import curses
 from typing import Any
 
 from soundboard_fuck.ui.abstract_panel import AbstractPanel
+from soundboard_fuck.ui.base.panel_placement import PanelPlacement
 
 
 class BottomPanel(AbstractPanel):
@@ -26,6 +27,9 @@ class BottomPanel(AbstractPanel):
             self.set_line(0, 1, text)
         else:
             self.clear_line(0, 1)
+
+    def get_placement(self, parent):
+        return PanelPlacement(x=0, y=parent.height - 2, width=parent.width, height=2, parent=parent)
 
     def on_state_change(self, name: str, value: Any):
         if name in ("selected_sound_id", "selected_sounds", "categories_with_sounds"):

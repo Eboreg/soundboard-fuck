@@ -12,6 +12,7 @@ from soundboard_fuck.enums import RepressMode
 from soundboard_fuck.player.wavplayer import WavPlayer
 from soundboard_fuck.progress_collection import ProgressCollection
 from soundboard_fuck.ui.abstract_panel import AbstractPanel
+from soundboard_fuck.ui.base.panel_placement import PanelPlacement
 from soundboard_fuck.utils import coerce_at_least, coerce_between
 
 
@@ -194,6 +195,9 @@ class SoundPanel(AbstractPanel):
             idx = pos + self.sounds.offset
             obj = self.sounds.get_object_at_idx(idx)
             self._render_object_at_pos(pos=pos, obj=obj, selected=selected and selected.obj == obj)
+
+    def get_placement(self, parent):
+        return PanelPlacement(x=0, y=2, width=parent.width, height=parent.height - 4, parent=parent)
 
     def on_state_change(self, name: str, value: Any):
         if name == "selected_sounds":

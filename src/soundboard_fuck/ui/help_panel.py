@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any
 
 from soundboard_fuck.ui.abstract_panel import AbstractPanel
+from soundboard_fuck.ui.base.panel_placement import CenteredPanelPlacement
 
 
 if TYPE_CHECKING:
@@ -9,17 +10,18 @@ if TYPE_CHECKING:
 
 
 class HelpPanel(AbstractPanel):
+    create_hidden = True
+
     def __init__(self, state: "State", z_index = 0):
         super().__init__(state=state, border=True, z_index=z_index)
-
-    @property
-    def height(self):
-        return len(self.get_rows()) + 2
 
     def contents(self):
         self.set_title("Help")
         for idx, row in enumerate(self.get_rows()):
             self.set_line(0, idx, row)
+
+    def get_placement(self, parent):
+        return CenteredPanelPlacement(parent=parent, width=80, height=len(self.get_rows()) + 2)
 
     def get_rows(self) -> list[str]:
         return [
