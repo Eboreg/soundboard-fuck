@@ -1,0 +1,9 @@
+/node_modules
+/.venv
+/.vscode
+**/__pycache__
+/.env
+**/.mypy_cache
+**/*.egg-info
+.directory
+*.sqlite3
