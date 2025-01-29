@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 from soundboard_fuck.data.category_with_sounds import CategoryWithSounds
+from soundboard_fuck.enums import RepressMode
 from soundboard_fuck.ui.colors import ColorScheme
 
 
@@ -68,6 +69,10 @@ class AbstractDb(ABC):
         return self.get_category(category.id)
 
     @abstractmethod
+    def get_repress_mode(self) -> RepressMode:
+        ...
+
+    @abstractmethod
     def get_sound(self, sound_id: int) -> "Sound":
         ...
 
@@ -105,4 +110,8 @@ class AbstractDb(ABC):
 
     @abstractmethod
     def set_default_category(self, category_id: int | None):
+        ...
+
+    @abstractmethod
+    def set_repress_mode(self, value: RepressMode):
         ...

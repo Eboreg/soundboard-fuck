@@ -16,8 +16,11 @@ class SoundList:
         categories_with_sounds: list[CategoryWithSounds],
         on_selected_change: Callable[[Sound | Category | None], Any],
         explicitly_selected: SelectedObject | None = None,
+        offset: int | None = None,
     ):
         self.objects = []
+        if offset is not None:
+            self.offset = offset
         for cws in categories_with_sounds:
             if cws.category:
                 self.objects.append(cws.category)
@@ -26,6 +29,7 @@ class SoundList:
         self.on_selected_change = on_selected_change
         if explicitly_selected:
             self.explicitly_selected = explicitly_selected
+        if explicitly_selected and explicitly_selected.obj in self.objects:
             self.on_selected_change(explicitly_selected.obj)
         else:
             selected = self.selected
@@ -62,6 +66,18 @@ class SoundList:
             obj = self.objects[new_idx]
             self.explicitly_selected = SelectedObject(new_idx, obj)
             self.on_selected_change(obj)
+
+    def copy(
+        self,
+        categories_with_sounds: list[CategoryWithSounds],
+        on_selected_change: Callable[[Sound | Category | None], Any],
+    ):
+        return SoundList(
+            categories_with_sounds=categories_with_sounds,
+            explicitly_selected=self.explicitly_selected,
+            on_selected_change=on_selected_change,
+            offset=self.offset,
+        )
 
     def find(self, obj: Sound | Category) -> tuple[int, Sound | Category]:
         for idx, o in enumerate(self.objects):

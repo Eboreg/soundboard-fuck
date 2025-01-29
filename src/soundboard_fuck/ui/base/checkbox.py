@@ -23,12 +23,13 @@ class Checkbox(FormElement[bool]):
         self.y = y
         self.label = label
         self.active_color = curses.color_pair(active_color or 0)
-        self.box = self.parent.derwin(1, 4, self.y, self.x)
 
     def activate(self) -> KeyPress:
         self.draw(True)
         while True:
             key = KeyPress.get(self.box)
+            if key.c == curses.KEY_RESIZE:
+                return key
             if key.c in (curses.ascii.SP, curses.ascii.NL):
                 self.value = not self.value
                 self.draw(True)
@@ -44,6 +45,7 @@ class Checkbox(FormElement[bool]):
                 return key
 
     def draw(self, active: bool = False):
+        self.box = self.parent.derwin(1, 4, self.y, self.x)
         if active:
             self.box.attron(self.active_color)
         self.box.addstr(0, 0, "[X]" if self.value else "[ ]")

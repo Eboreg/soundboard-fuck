@@ -32,9 +32,11 @@ class TopPanel(AbstractPanel):
     ]
 
     def contents(self):
+        self.window.clear()
         self.set_line(0, 0, f"Filter: {self.state.query}", width=self.width - 28)
         self.set_line(self.width - 40, 0, f"Re-press mode: {self.state.repress_mode.value}")
         self.set_line(self.width - 15, 0, "Help: Alt+H")
+        self.window.hline(1, 0, curses.ACS_HLINE, self.width)
 
     def get_placement(self, parent):
         return PanelPlacement(x=0, y=0, width=parent.width, height=2, parent=parent)
@@ -42,9 +44,6 @@ class TopPanel(AbstractPanel):
     def on_state_change(self, name: str, value: Any):
         if name in ("query", "repress_mode"):
             self.redraw(force=True)
-
-    def setup(self):
-        self.window.border(" ", " ", " ", 0, " ", " ", curses.ACS_HLINE, curses.ACS_HLINE)
 
     def take(self, key: "KeyPress") -> bool:
         if key.c >= 32 and key.c not in self.special_keys and not key.meta and key.s is not None:

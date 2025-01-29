@@ -22,7 +22,6 @@ class Button(FormElement):
         self.y = y
         self.label = label
         self.active_color = curses.color_pair(active_color or 0)
-        self.window = self.parent.derwin(3, self.width + 1, self.y, self.x)
 
     @property
     def width(self):
@@ -33,6 +32,8 @@ class Button(FormElement):
         while True:
             key = KeyPress.get(self.window)
 
+            if key.c == curses.KEY_RESIZE:
+                return key
             if key.c in (
                 curses.KEY_UP,
                 curses.KEY_DOWN,
@@ -47,6 +48,7 @@ class Button(FormElement):
                 return key
 
     def draw(self, active: bool = False):
+        self.window = self.parent.derwin(3, self.width + 1, self.y, self.x)
         if active:
             self.window.attron(self.active_color)
         rectangle(self.window, 0, 0, 2, self.width - 1)

@@ -10,6 +10,9 @@ class BottomPanel(AbstractPanel):
         selected_sound = self.state.selected_sound
         selected_sounds = self.state.selected_sounds
 
+        self.window.clear()
+        self.window.hline(0, 0, curses.ACS_HLINE, self.width)
+
         if selected_sounds:
             selected = len(selected_sounds)
             selected_text = "1 selected sound" if selected == 1 else f"{selected} selected sounds"
@@ -36,6 +39,3 @@ class BottomPanel(AbstractPanel):
     def on_state_change(self, name: str, value: Any):
         if name in ("selected_sound_id", "selected_sounds", "categories_with_sounds"):
             self.redraw(force=True)
-
-    def setup(self):
-        self.window.border(" ", " ", curses.ACS_HLINE, " ", curses.ACS_HLINE, curses.ACS_HLINE, " ", " ")

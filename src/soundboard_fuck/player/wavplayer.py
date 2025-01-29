@@ -56,7 +56,8 @@ class WavPlayer(AbstractPlayer):
                 rate=frame_rate,
                 output=True,
                 stream_callback=callback,
-                frames_per_buffer=500,
+                frames_per_buffer=1000,
+                # frames_per_buffer=500,
             )
             self.stream = stream
 
@@ -66,7 +67,7 @@ class WavPlayer(AbstractPlayer):
                     start_time = stream_time
                 if duration_seconds:
                     self._on_progress((stream_time - start_time) / duration_seconds)
-                time.sleep(0.1)
+                time.sleep(0.2)
 
             self._on_progress(1.0)
             stream.close()

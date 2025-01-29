@@ -3,11 +3,13 @@ from copy import deepcopy
 from soundboard_fuck.data.category import Category, test_categories
 from soundboard_fuck.data.sound import Sound, get_test_sounds
 from soundboard_fuck.db.abstractdb import AbstractDb
+from soundboard_fuck.enums import RepressMode
 
 
 class DummyDb(AbstractDb):
     _categories: "dict[int, Category]"
     _sounds: "dict[int, Sound]"
+    _repress_mode = RepressMode.STOP
 
     @property
     def categories(self):
@@ -73,6 +75,9 @@ class DummyDb(AbstractDb):
     def get_category(self, category_id):
         return self.categories[category_id]
 
+    def get_repress_mode(self):
+        return self._repress_mode
+
     def get_sound(self, sound_id):
         return self._sounds[sound_id]
 
@@ -100,3 +105,7 @@ class DummyDb(AbstractDb):
                 category.is_default = True
             else:
                 category.is_default = False
+
+    def set_repress_mode(self, value):
+        self._repress_mode = value
+        self.notify_listeners("meta")

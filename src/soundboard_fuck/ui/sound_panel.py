@@ -208,10 +208,8 @@ class SoundPanel(AbstractPanel):
         if name == "selected_sounds":
             self.redraw(force=True)
         elif name == "categories_with_sounds":
-            explicitly_selected = self.sounds.explicitly_selected
-            self.sounds = SoundList(
+            self.sounds = self.sounds.copy(
                 categories_with_sounds=value,
-                explicitly_selected=explicitly_selected,
                 on_selected_change=self._on_selected_change,
             )
             self.redraw(force=True)

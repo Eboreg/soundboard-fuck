@@ -13,9 +13,10 @@ if TYPE_CHECKING:
 
 class HelpPanel(AbstractPanel):
     create_hidden = True
+    border = True
 
     def __init__(self, state: "State", z_index = 0):
-        super().__init__(state=state, border=True, z_index=z_index)
+        super().__init__(state=state, z_index=z_index)
 
     def contents(self):
         self.set_title("Help")
@@ -28,11 +29,13 @@ class HelpPanel(AbstractPanel):
     def get_rows(self) -> list[str]:
         return [
             "Enter: Play/stop/restart sound (depending on re-press mode)",
-            "Up/Down/PgUp/PgDn/Home/End: Navigate sounds",
             "Ctrl+Space: Enter/exit sound selection mode",
             "Ctrl+D/Alt+Q: Quit",
             "Alt+Backspace: Clear filter",
             f"Alt+R: Switch re-press mode (currently: {self.state.repress_mode.value})",
+            "Esc: Close open popup",
+            "Alt+E: Edit selected sound/category",
+            "Alt+N: Add new category",
         ]
 
     def on_state_change(self, name: str, value: Any):

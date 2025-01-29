@@ -35,14 +35,13 @@ class Input(FormElement[str]):
         self.error_color = curses.color_pair(error_color)
         self.value = value
         self.label = label
-        self.window = self.parent.derwin(1, self.get_width() - 2, self.y + 1, self.x + 1)
-        self.box = Textbox(self.window)
         self.validator = validator
 
     def activate(self) -> KeyPress:
         self.draw(active=True)
         self.window.move(0, len(self.value) + 1)
         previous_cursor = curses.curs_set(1)
+        self.box = Textbox(self.window)
         self.box.edit(self.validate_box)
         self.value = self.box.gather().strip()
         curses.curs_set(previous_cursor)
@@ -55,6 +54,7 @@ class Input(FormElement[str]):
 
     def draw(self, active: bool = False):
         width = self.get_width()
+        self.window = self.parent.derwin(1, width - 2, self.y + 1, self.x + 1)
         error: str | None = None
         if self.error:
             color = self.error_color
@@ -85,6 +85,7 @@ class Input(FormElement[str]):
             curses.KEY_UP,
             curses.KEY_DOWN,
             curses.KEY_BTAB,  # shift-tab
+            curses.KEY_RESIZE,
             curses.ascii.NL,
             curses.ascii.HT,
             curses.ascii.ESC,

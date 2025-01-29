@@ -28,6 +28,7 @@ class SoundboardScreen(Screen):
         super().__init__(border)
         self.db = db
         self.state = State(self.db)
+        self.state.add_resize_listener(self.on_resize)
 
     def bootstrap_data(self):
         category = self.db.get_or_create_default_category()

@@ -53,6 +53,9 @@ class SoundEditPanel(FormPanel, AbstractPanel):
         return CenteredPanelPlacement(parent=parent, width=80, height=8)
 
     def on_element_keypress(self, elem_key, element, key):
+        if key.c == curses.KEY_RESIZE:
+            self.state.on_resize()
+            self.activate()
         if elem_key == "button" and key.c in (curses.ascii.SP, curses.ascii.NL):
             if not self.elements["name"].error:
                 sound = self.sound.copy(
@@ -72,6 +75,7 @@ class SoundEditPanel(FormPanel, AbstractPanel):
         self.elements["name"].value = self.sound.name
         category_select.value = category
         category_select.options = categories
+        self.set_title("Edit sound")
         super().show()
 
     def take(self, key):

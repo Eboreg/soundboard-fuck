@@ -11,13 +11,14 @@ from soundboard_fuck.db.sqlite.sql_column import (
     SqlType,
 )
 from soundboard_fuck.db.sqlite.wrappers import FetchAllWrapper, FetchOneWrapper
+from soundboard_fuck.enums import RepressMode
 from soundboard_fuck.ui.colors import ColorScheme
 
 
 # pylint: disable=too-many-public-methods
 class SqliteDb(SqliteMixin, AbstractDb):
     db_name = "soundboard.sqlite3"
-    db_version = 7
+    db_version = 8
 
     def __init__(self):
         super().__init__()
@@ -35,6 +36,19 @@ class SqliteDb(SqliteMixin, AbstractDb):
             "order": SqlColumn(type=SqlType.INTEGER, not_null=True),
             "colors": SqlColumn(type=SqlType.VARCHAR, not_null=True, default=ColorScheme.RED.name),
             "is_expanded": SqlColumn(type=SqlType.INTEGER, not_null=True, default=1),
+        }
+
+    @property
+    def meta_columns(self):
+        return {
+            "db_version": SqlColumn(type=SqlType.INTEGER, not_null=True, default=self.db_version),
+            "default_category": SqlColumn(
+                type=SqlType.INTEGER,
+                references=("categories", "id"),
+                on_delete=ForeignKeyAction.SET_NULL,
+                on_update=ForeignKeyAction.CASCADE,
+            ),
+            "repress_mode": SqlColumn(type=SqlType.VARCHAR, not_null=True, default=RepressMode.STOP.name),
         }
 
     @property
@@ -80,18 +94,7 @@ class SqliteDb(SqliteMixin, AbstractDb):
         return self.get_category(category_id)
 
     def create_meta_table(self):
-        self.create_table(
-            name="meta",
-            columns={
-                "db_version": SqlColumn(type=SqlType.INTEGER, not_null=True, default=self.db_version),
-                "default_category": SqlColumn(
-                    type=SqlType.INTEGER,
-                    references=("categories", "id"),
-                    on_delete=ForeignKeyAction.SET_NULL,
-                    on_update=ForeignKeyAction.CASCADE,
-                ),
-            },
-        )
+        self.create_table(name="meta", columns=self.meta_columns)
 
     def create_sound(self, name, path, category_id = None, duration_ms = None):
         duration_ms: int | None = duration_ms or Sound.extract_duration_ms(path)
@@ -146,6 +149,11 @@ class SqliteDb(SqliteMixin, AbstractDb):
             assert row is not None
             return self.sql_to_category(row)
 
+    def get_repress_mode(self):
+        with FetchOneWrapper(self.db_name, "SELECT repress_mode FROM meta LIMIT 1") as row:
+            assert row is not None
+            return self.value_to_python(row[0], RepressMode)
+
     def get_sound(self, sound_id):
         sql = """
             SELECT s.id, s.name, s.path, s.duration_ms, s.play_count, s.category_id, c.colors
@@ -177,6 +185,10 @@ class SqliteDb(SqliteMixin, AbstractDb):
             return [self.sql_to_sound(row) for row in rows]
 
     def migrate(self, to_version: int):
+        if to_version == 8:
+            stmt = self.meta_columns["repress_mode"].create_stmt("repress_mode")
+            self.execute(f"ALTER TABLE meta ADD COLUMN {stmt}")
+
         if to_version == 7:
             self.execute("ALTER TABLE categories DROP COLUMN is_default")
 
@@ -265,6 +277,10 @@ class SqliteDb(SqliteMixin, AbstractDb):
     def set_default_category(self, category_id):
         self.execute("UPDATE meta SET default_category=?", (self.value_to_sql(category_id, SqlType.INTEGER),))
         self.notify_listeners("categories")
+
+    def set_repress_mode(self, value):
+        self.execute("UPDATE meta SET repress_mode=?", (self.value_to_sql(value, SqlType.VARCHAR),))
+        self.notify_listeners("meta")
 
     def sql_to_category(self, row: tuple) -> Category:
         return Category(

@@ -109,19 +109,21 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
     ):
         padding = padding[0] or " "
         if width is None:
-            width = self.width - x - 1
+            final_width = self.width - x - 1
             if self.border:
-                width -= 2
+                final_width -= 2
+        else:
+            final_width = width
         if self.border:
             x += 2
             y += 1
-        text = f"{text:.{width}s}"
-        if len(text) < width:
-            text += padding * (width - len(text))
+        text = f"{text:{final_width}.{final_width}s}"
+        self.window.addstr(y, x, text)
         if attr is not None:
-            self.window.addstr(y, x, text, attr)
-        else:
-            self.window.addstr(y, x, text)
+            if width is not None:
+                self.window.chgat(y, x, width, attr)
+            else:
+                self.window.chgat(y, x, -1, attr)
 
     def set_title(self, text: str):
         text = f"[ {text} ]"

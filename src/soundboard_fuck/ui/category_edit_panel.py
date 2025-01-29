@@ -16,7 +16,11 @@ from soundboard_fuck.ui.color_select import ColorSelect
 class CategoryEditPanel(FormPanel, AbstractPanel):
     create_hidden = True
     border = True
-    category: Category
+    category: Category | None = None
+    name: str
+    order: int
+    is_default: bool
+    color_scheme: colors.ColorScheme
 
     def __init__(self, state, db: AbstractDb, border=None, z_index=None):
         self.db = db
@@ -61,16 +65,27 @@ class CategoryEditPanel(FormPanel, AbstractPanel):
         return CenteredPanelPlacement(parent=parent, width=80, height=11)
 
     def on_element_keypress(self, elem_key, element, key):
-        if elem_key == "button" and key.c in (curses.ascii.SP, curses.ascii.NL):
+        if key.c == curses.KEY_RESIZE:
+            self.state.on_resize()
+            self.activate()
+        elif elem_key == "button" and key.c in (curses.ascii.SP, curses.ascii.NL):
             name_input = self.elements["name"]
             order_input = self.elements["order"]
             if not name_input.error and not order_input.error:
-                category = self.category.copy(
-                    name=name_input.value,
-                    order=str(order_input.value),
-                    colors=self.elements["color"].value,
-                )
-                self.db.save_categories(category)
+                if self.category:
+                    category = self.category.copy(
+                        name=name_input.value,
+                        order=int(order_input.value),
+                        colors=self.elements["color"].value,
+                    )
+                    self.db.save_categories(category)
+                else:
+                    category = self.db.create_category(
+                        name=name_input.value,
+                        order=int(order_input.value),
+                        colors=self.elements["color"].value,
+                        is_expanded=True,
+                    )
                 if self.elements["is_default"].value != category.is_default:
                     self.db.set_default_category(category.id if self.elements["is_default"].value else None)
                 self.hide()
@@ -78,10 +93,14 @@ class CategoryEditPanel(FormPanel, AbstractPanel):
                 self.activate()
 
     def show(self):
-        self.elements["name"].value = self.category.name
-        self.elements["order"].value = str(self.category.order)
-        self.elements["is_default"].value = self.category.is_default
-        self.elements["color"].value = self.category.colors
+        self.elements["name"].value = self.name
+        self.elements["order"].value = str(self.order)
+        self.elements["is_default"].value = self.is_default
+        self.elements["color"].value = self.color_scheme
+        if self.category:
+            self.set_title("Edit category")
+        else:
+            self.set_title("Add category")
         super().show()
 
     def take(self, key):
@@ -90,7 +109,20 @@ class CategoryEditPanel(FormPanel, AbstractPanel):
                 self.hide()
             return True
         if key.meta and key.s == "e" and self.state.selected_category:
-            self.category = self.state.selected_category
+            category = self.state.selected_category
+            self.category = category
+            self.name = category.name
+            self.color_scheme = category.colors
+            self.is_default = category.is_default
+            self.order = category.order
+            self.show()
+            return True
+        if key.meta and key.s == "n":
+            self.category = None
+            self.name = ""
+            self.color_scheme = colors.ColorScheme.BLUE
+            self.is_default = False
+            self.order = self.state.max_category_order + 1
             self.show()
             return True
         return False

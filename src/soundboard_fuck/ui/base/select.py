@@ -16,6 +16,7 @@ class Select(ABC, Generic[_T]):
     dropdown_window: curses.window | None = None
     dropdown_panel: "curses.panel._Curses_Panel | None" = None  # pylint: disable=no-member
     options: list[_T]
+    window: curses.window
 
     def __init__(
         self,
@@ -36,7 +37,6 @@ class Select(ABC, Generic[_T]):
         self.width = width
         self.x = x
         self.y = y
-        self.window = self.parent.derwin(4, self.get_width() + 1, self.y, self.x)
 
     @abstractmethod
     def print_label(self, option: _T, window: curses.window, x: int, y: int, width: int):
@@ -46,6 +46,8 @@ class Select(ABC, Generic[_T]):
         self.draw(True)
         while True:
             key = KeyPress.get(self.window)
+            if key.c == curses.KEY_RESIZE:
+                return key
             if key.c in (curses.ascii.SP, curses.ascii.NL):
                 self.is_open = not self.is_open
                 self.draw(True)
@@ -73,12 +75,14 @@ class Select(ABC, Generic[_T]):
                 return key
 
     def draw(self, active: bool = False):
+        width = self.get_width()
+        self.window = self.parent.derwin(4, width + 1, self.y, self.x)
         color = self.active_color if active else self.inactive_color
         self.window.attron(color)
         self.draw_borders()
-        self.window.addstr(1, self.get_width() - 3, "▴" if self.is_open else "▾")
+        self.window.addstr(1, width - 3, "▴" if self.is_open else "▾")
         self.window.attroff(color)
-        self.print_label(self.value, self.window, 2, 1, self.get_width() - 5)
+        self.print_label(self.value, self.window, 2, 1, width - 5)
         self.window.refresh()
         if self.is_open:
             self.init_dropdown()
