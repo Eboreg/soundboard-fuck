@@ -50,3 +50,14 @@ def str_floats_diff(f1: tuple[float, float], f2: tuple[float, float]) -> float:
 
 def str_diff(s1: str, s2: str) -> float:
     return str_floats_diff(str_to_floats(s1), str_to_floats(s2))
+
+
+def format_milliseconds(ms: float | int):
+    seconds = ms / 1000 % 60
+    minutes = int(ms / 1000 / 60 % 60)
+    hours = int(ms / 1000 / 60 / 60)
+    if hours > 0:
+        return f"{hours}h{minutes:02d}m{seconds:02.0f}s"
+    if minutes > 0:
+        return f"{minutes:02d}m{seconds:02.0f}s"
+    return f"{seconds:.2f}s"

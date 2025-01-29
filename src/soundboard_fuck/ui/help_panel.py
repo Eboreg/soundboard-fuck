@@ -1,3 +1,5 @@
+import curses
+import curses.ascii
 from typing import TYPE_CHECKING, Any
 
 from soundboard_fuck.ui.abstract_panel import AbstractPanel
@@ -46,7 +48,7 @@ class HelpPanel(AbstractPanel):
         if key.meta and key.s == "h" and not self.state.show_help:
             self.state.show_help = True
             return True
-        if key.escape and self.state.show_help:
+        if key.c == curses.ascii.ESC and self.state.show_help:
             self.state.show_help = False
             return True
         return self.state.show_help

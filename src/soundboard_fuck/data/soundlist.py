@@ -21,7 +21,8 @@ class SoundList:
         for cws in categories_with_sounds:
             if cws.category:
                 self.objects.append(cws.category)
-            self.objects.extend(cws.sounds)
+            if not cws.category or cws.category.is_expanded:
+                self.objects.extend(cws.sounds)
         self.on_selected_change = on_selected_change
         if explicitly_selected:
             self.explicitly_selected = explicitly_selected

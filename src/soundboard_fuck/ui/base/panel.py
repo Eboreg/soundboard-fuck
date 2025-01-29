@@ -42,7 +42,10 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
 
     @property
     def width(self) -> int:
-        return self.window.getmaxyx()[1]
+        width = self.window.getmaxyx()[1]
+        if self.border:
+            return width - 1
+        return width
 
     def __eq__(self, other):
         return other is self

@@ -1,3 +1,6 @@
+import curses
+import curses.ascii
+
 from soundboard_fuck.data.category import Category
 from soundboard_fuck.db.abstractdb import AbstractDb
 from soundboard_fuck.state import State
@@ -7,6 +10,7 @@ from soundboard_fuck.ui.base.panel_placement import CenteredPanelPlacement
 
 class SoundBatchEditPanel(AbstractPanel):
     create_hidden = True
+    border = True
 
     def __init__(self, state: State, db: AbstractDb, z_index = 0):
         self.db = db
@@ -32,13 +36,18 @@ class SoundBatchEditPanel(AbstractPanel):
                 self.hide()
 
     def take(self, key):
-        if key.escape and self.state.show_sound_batch_edit:
+        if key.c == curses.ascii.ESC and self.state.show_sound_batch_edit:
             self.state.show_sound_batch_edit = False
             return True
         if key.meta and key.s == "e" and self.state.selected_sounds:
             self.state.show_sound_batch_edit = True
             return True
-        if self.state.show_sound_batch_edit and not key.escape and not key.ctrl and not key.meta:
+        if (
+            self.state.show_sound_batch_edit and
+            key.c != curses.ascii.ESC and
+            not key.ctrl and
+            not key.meta
+        ):
             try:
                 idx = int(key.s)
                 if idx < len(self.categories):

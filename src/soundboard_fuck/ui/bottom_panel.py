@@ -14,7 +14,7 @@ class BottomPanel(AbstractPanel):
             selected = len(selected_sounds)
             selected_text = "1 selected sound" if selected == 1 else f"{selected} selected sounds"
             text = (
-                f"{selected_text} | Enter to select/unselect | "
+                f"{selected_text} | Enter/Space to toggle select | "
                 "Ctrl+Space to unselect all"
             )
             self.set_line(0, 1, text)
@@ -25,6 +25,8 @@ class BottomPanel(AbstractPanel):
                 f"{selected_sound.path}"
             )
             self.set_line(0, 1, text)
+        elif self.state.selected_category_id:
+            self.set_line(0, 1, "Enter: Collapse/expand sounds | Alt+E: Edit category")
         else:
             self.clear_line(0, 1)
 

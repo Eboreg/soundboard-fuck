@@ -14,17 +14,18 @@ from soundboard_fuck.db.sqlite.wrappers import FetchAllWrapper, FetchOneWrapper
 from soundboard_fuck.ui.colors import ColorScheme
 
 
+# pylint: disable=too-many-public-methods
 class SqliteDb(SqliteMixin, AbstractDb):
     db_name = "soundboard.sqlite3"
-    db_version = 4
+    db_version = 7
 
     def __init__(self):
         super().__init__()
         actual_version = self.check_actual_version()
         if actual_version != self.db_version:
-            self.migrate(actual_version)
-            self.execute("DELETE FROM meta")
-            self.execute(f"INSERT INTO meta (db_version) VALUES ({self.db_version})")
+            for to_version in range(actual_version + 1, self.db_version + 1):
+                self.migrate(to_version)
+            self.update_meta()
 
     @property
     def categories_columns(self):
@@ -32,8 +33,8 @@ class SqliteDb(SqliteMixin, AbstractDb):
             "id": IdColumn,
             "name": SqlColumn(type=SqlType.VARCHAR, not_null=True),
             "order": SqlColumn(type=SqlType.INTEGER, not_null=True),
-            "is_default": SqlColumn(type=SqlType.INTEGER, not_null=True, default=0),
             "colors": SqlColumn(type=SqlType.VARCHAR, not_null=True, default=ColorScheme.RED.name),
+            "is_expanded": SqlColumn(type=SqlType.INTEGER, not_null=True, default=1),
         }
 
     @property
@@ -60,28 +61,36 @@ class SqliteDb(SqliteMixin, AbstractDb):
     def create_categories_table(self):
         self.create_table(name="categories", columns=self.categories_columns)
 
-    def create_category(self, name, order, is_default, colors):
+    def create_category(self, name, order, colors, is_expanded):
+        self.execute(f"UPDATE categories SET `order` = `order` + 1 WHERE `order` >= {order}")
         category_id = self.insert_one(
             """
-            INSERT INTO categories (name, `order`, is_default, colors)
-            VALUES (:name, :order, :is_default, :colors)
+            INSERT INTO categories (name, `order`, colors, is_expanded)
+            VALUES (:name, :order, :colors, :is_expanded)
             """,
             {
                 "name": name,
                 "order": order,
-                "is_default": self.value_to_sql(is_default, SqlType.INTEGER),
                 "colors": self.value_to_sql(colors, SqlType.VARCHAR),
+                "is_expanded": self.value_to_sql(is_expanded, SqlType.INTEGER),
             },
         )
-        if category_id is not None:
-            self.notify_listeners("categories")
-            return self.get_category(category_id)
-        return None
+        assert category_id is not None
+        self.notify_listeners("categories")
+        return self.get_category(category_id)
 
     def create_meta_table(self):
         self.create_table(
             name="meta",
-            columns={"db_version": SqlColumn(type=SqlType.INTEGER, not_null=True, default=self.db_version)},
+            columns={
+                "db_version": SqlColumn(type=SqlType.INTEGER, not_null=True, default=self.db_version),
+                "default_category": SqlColumn(
+                    type=SqlType.INTEGER,
+                    references=("categories", "id"),
+                    on_delete=ForeignKeyAction.SET_NULL,
+                    on_update=ForeignKeyAction.CASCADE,
+                ),
+            },
         )
 
     def create_sound(self, name, path, category_id = None, duration_ms = None):
@@ -98,10 +107,9 @@ class SqliteDb(SqliteMixin, AbstractDb):
                 "category_id": self.value_to_sql(category_id, SqlType.INTEGER),
             },
         )
-        if sound_id is not None:
-            self.notify_listeners("sounds")
-            return self.get_sound(sound_id)
-        return None
+        assert sound_id is not None
+        self.notify_listeners("sounds")
+        return self.get_sound(sound_id)
 
     def create_sounds_table(self):
         self.create_table(name="sounds", columns=self.sounds_columns)
@@ -111,7 +119,7 @@ class SqliteDb(SqliteMixin, AbstractDb):
         self.notify_listeners("categories")
 
     def delete_sound(self, sound_id):
-        self.execute(f"DELETE FROM sound WHERE id={sound_id}")
+        self.execute(f"DELETE FROM sounds WHERE id={sound_id}")
         self.notify_listeners("sounds")
 
     def filter_sounds(self, query):
@@ -127,9 +135,16 @@ class SqliteDb(SqliteMixin, AbstractDb):
         return self.list_sounds()
 
     def get_category(self, category_id):
-        sql = "SELECT id, name, `order`, is_default, colors FROM categories WHERE id=:id"
+        sql = """
+            SELECT c.id, c.name, c.`order`, c.colors, c.is_expanded, COUNT(s.id), TOTAL(s.duration_ms),
+                EXISTS(SELECT * FROM meta WHERE default_category = c.id) AS is_default
+            FROM categories c LEFT JOIN sounds s ON c.id = s.category_id
+            WHERE c.id=:id
+            GROUP BY c.id
+        """
         with FetchOneWrapper(self.db_name, sql, {"id": category_id}) as row:
-            return self.sql_to_category(row) if row else None
+            assert row is not None
+            return self.sql_to_category(row)
 
     def get_sound(self, sound_id):
         sql = """
@@ -138,10 +153,17 @@ class SqliteDb(SqliteMixin, AbstractDb):
             WHERE s.id=:id
         """
         with FetchOneWrapper(self.db_name, sql, {"id": sound_id}) as row:
-            return self.sql_to_sound(row) if row else None
+            assert row is not None
+            return self.sql_to_sound(row)
 
     def list_categories(self):
-        sql = "SELECT id, name, `order`, is_default, colors FROM categories ORDER BY `order`"
+        sql = """
+            SELECT c.id, c.name, c.`order`, c.colors, c.is_expanded, COUNT(s.id), TOTAL(s.duration_ms),
+                EXISTS(SELECT * FROM meta WHERE default_category=c.id) AS is_default
+            FROM categories c LEFT JOIN sounds s ON c.id = s.category_id
+            GROUP BY c.id
+            ORDER BY c.`order`
+        """
         with FetchAllWrapper(self.db_name, sql) as rows:
             return [self.sql_to_category(row) for row in rows]
 
@@ -154,12 +176,29 @@ class SqliteDb(SqliteMixin, AbstractDb):
         with FetchAllWrapper(self.db_name, sql) as rows:
             return [self.sql_to_sound(row) for row in rows]
 
-    def migrate(self, from_version: int):
-        if from_version == 3:
+    def migrate(self, to_version: int):
+        if to_version == 7:
+            self.execute("ALTER TABLE categories DROP COLUMN is_default")
+
+        if to_version == 6:
+            self.execute("DROP TABLE meta")
+            self.create_meta_table()
+            with FetchOneWrapper(self.db_name, "SELECT id FROM categories WHERE is_default=1 LIMIT 1") as row:
+                if row:
+                    self.execute(
+                        "INSERT INTO meta (db_version, default_category) VALUES (?, ?)",
+                        (self.db_version, row[0]),
+                    )
+
+        if to_version == 5:
+            stmt = self.categories_columns["is_expanded"].create_stmt("is_expanded")
+            self.execute(f"ALTER TABLE categories ADD COLUMN {stmt}")
+
+        if to_version == 4:
             stmt = self.categories_columns["colors"].create_stmt("colors")
             self.execute(f"ALTER TABLE categories ADD COLUMN {stmt}")
 
-        elif from_version in (1, 2):
+        if to_version == 3:
             sounds = self.list_sounds()
             categories = self.list_categories()
 
@@ -169,7 +208,6 @@ class SqliteDb(SqliteMixin, AbstractDb):
             self.create_sounds_table()
 
             default_cat = self.get_or_create_default_category()
-            assert default_cat is not None
             if default_cat not in categories:
                 categories.append(default_cat)
             for sound in sounds:
@@ -179,7 +217,7 @@ class SqliteDb(SqliteMixin, AbstractDb):
             self.save_categories(*categories)
             self.save_sounds(*sounds)
 
-        elif from_version == 0:
+        if to_version == 1:
             self.create_meta_table()
             self.create_categories_table()
             self.create_sounds_table()
@@ -189,16 +227,16 @@ class SqliteDb(SqliteMixin, AbstractDb):
         if categories:
             self.executemany(
                 """
-                INSERT OR REPLACE INTO categories (id, name, `order`, is_default, colors)
-                VALUES (:id, :name, :order, :is_default, :colors)
+                INSERT OR REPLACE INTO categories (id, name, `order`, colors, is_expanded)
+                VALUES (:id, :name, :order, :colors, :is_expanded)
                 """,
                 [
                     {
                         "id": c.id,
                         "name": c.name,
                         "order": c.order,
-                        "is_default": self.value_to_sql(c.is_default, SqlType.INTEGER),
                         "colors": self.value_to_sql(c.colors, SqlType.VARCHAR),
+                        "is_expanded": self.value_to_sql(c.is_expanded, SqlType.INTEGER),
                     } for c in categories
                 ],
             )
@@ -224,13 +262,20 @@ class SqliteDb(SqliteMixin, AbstractDb):
             )
             self.notify_listeners("sounds")
 
+    def set_default_category(self, category_id):
+        self.execute("UPDATE meta SET default_category=?", (self.value_to_sql(category_id, SqlType.INTEGER),))
+        self.notify_listeners("categories")
+
     def sql_to_category(self, row: tuple) -> Category:
         return Category(
             id=row[0],
             name=row[1],
             order=row[2],
-            is_default=self.value_to_python(row[3], bool),
-            colors=self.value_to_python(row[4], ColorScheme),
+            colors=self.value_to_python(row[3], ColorScheme),
+            is_expanded=self.value_to_python(row[4], bool),
+            sound_count=row[5],
+            duration_ms=row[6],
+            is_default=self.value_to_python(row[7], bool),
         )
 
     def sql_to_sound(self, row: tuple):
@@ -242,4 +287,16 @@ class SqliteDb(SqliteMixin, AbstractDb):
             play_count=row[4],
             category_id=self.value_to_python(row[5], int),
             colors=self.value_to_python(row[6], ColorScheme),
+        )
+
+    def update_meta(self):
+        default_category = None
+
+        with FetchOneWrapper(self.db_name, "SELECT * FROM meta LIMIT 1") as row:
+            if row and len(row) > 1:
+                default_category = row[1]
+        self.execute("DELETE FROM meta")
+        self.execute(
+            "INSERT INTO meta (db_version, default_category) VALUES (?, ?)",
+            (self.db_version, default_category),
         )

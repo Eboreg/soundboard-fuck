@@ -1,4 +1,5 @@
 import curses
+import curses.ascii
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 
@@ -13,7 +14,11 @@ from soundboard_fuck.player.wavplayer import WavPlayer
 from soundboard_fuck.progress_collection import ProgressCollection
 from soundboard_fuck.ui.abstract_panel import AbstractPanel
 from soundboard_fuck.ui.base.panel_placement import PanelPlacement
-from soundboard_fuck.utils import coerce_at_least, coerce_between
+from soundboard_fuck.utils import (
+    coerce_at_least,
+    coerce_between,
+    format_milliseconds,
+)
 
 
 if TYPE_CHECKING:
@@ -75,13 +80,7 @@ class SoundPanel(AbstractPanel):
     def _on_enter_press(self):
         selected = self.selected_object
         if isinstance(selected, Sound):
-            if self.state.selected_sounds:
-                if selected in self.state.selected_sounds:
-                    self.state.selected_sounds = self.state.selected_sounds.difference({selected})
-                else:
-                    self.state.selected_sounds = self.state.selected_sounds.union({selected})
-                self._step_single(1)
-            elif self._is_playing(selected.id):
+            if self._is_playing(selected.id):
                 if self.state.repress_mode == RepressMode.STOP:
                     self._stop_sound(selected.id)
                 elif self.state.repress_mode == RepressMode.OVERDUB:
@@ -91,6 +90,9 @@ class SoundPanel(AbstractPanel):
                     self._play_sound(selected)
             else:
                 self._play_sound(selected)
+        elif isinstance(selected, Category):
+            category = selected.copy(is_expanded=not selected.is_expanded)
+            self.db.save_categories(category)
 
     def _on_progress(self, progress: "PlayerProgress"):
         if self.progresses.append(progress):
@@ -149,8 +151,11 @@ class SoundPanel(AbstractPanel):
             text = obj.name
 
             if isinstance(obj, Category):
-                text = f"[ {obj.name} ]"
-                attr |= curses.A_BOLD
+                text = f"[ {obj.name} | {obj.sound_count} sounds | {format_milliseconds(obj.duration_ms)} ]"
+                if obj.is_expanded:
+                    attr |= curses.A_BOLD
+                else:
+                    attr |= curses.A_ITALIC
             else:
                 if obj in self.state.selected_sounds:
                     attr |= curses.A_BOLD
@@ -225,6 +230,7 @@ class SoundPanel(AbstractPanel):
             curses.KEY_END,
         ]
         accepted_s = ["\n"]
+        selected = self.selected_object
 
         if key.meta:
             if key.s == "s":
@@ -241,6 +247,14 @@ class SoundPanel(AbstractPanel):
                 self._step_single(1)
             return True
 
+        if key.c in (curses.ascii.SP, curses.ascii.NL) and self.state.selected_sounds and isinstance(selected, Sound):
+            if selected in self.state.selected_sounds:
+                self.state.selected_sounds = self.state.selected_sounds.difference({selected})
+            else:
+                self.state.selected_sounds = self.state.selected_sounds.union({selected})
+            self._step_single(1)
+            return True
+
         if key.c in accepted_c or key.s in accepted_s:
             if key.c == curses.KEY_DOWN:
                 self._step_single(1)
@@ -254,7 +268,7 @@ class SoundPanel(AbstractPanel):
                 self._move_to_idx(0)
             elif key.c == curses.KEY_END:
                 self._move_to_idx(len(self.sounds) - 1)
-            elif key.s == "\n":
+            elif key.c == curses.ascii.NL:
                 self._on_enter_press()
             return True
 

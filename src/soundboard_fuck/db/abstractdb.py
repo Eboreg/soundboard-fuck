@@ -18,7 +18,13 @@ class AbstractDb(ABC):
         self._listeners = []
 
     @abstractmethod
-    def create_category(self, name: str, order: int, is_default: bool, colors: ColorScheme) -> "Category | None":
+    def create_category(
+        self,
+        name: str,
+        order: int,
+        colors: ColorScheme,
+        is_expanded: bool,
+    ) -> "Category":
         ...
 
     @abstractmethod
@@ -28,7 +34,7 @@ class AbstractDb(ABC):
         path: Path,
         category_id: int | None = None,
         duration_ms: int | None = None,
-    ) -> "Sound | None":
+    ) -> "Sound":
         ...
 
     @abstractmethod
@@ -44,18 +50,25 @@ class AbstractDb(ABC):
         ...
 
     @abstractmethod
-    def get_category(self, category_id: int) -> "Category | None":
+    def get_category(self, category_id: int) -> "Category":
         ...
 
-    def get_or_create_default_category(self):
-        categories = self.list_categories()
-        categories = [c for c in categories if c.is_default]
-        if categories:
-            return categories[0]
-        return self.create_category(name="Default", order=0, is_default=True, colors=ColorScheme.RED)
+    def get_default_category(self) -> "Category | None":
+        for category in self.list_categories():
+            if category.is_default:
+                return category
+        return None
+
+    def get_or_create_default_category(self) -> "Category":
+        category = self.get_default_category()
+        if category:
+            return category
+        category = self.create_category("Default", 0, ColorScheme.RED, True)
+        self.set_default_category(category.id)
+        return self.get_category(category.id)
 
     @abstractmethod
-    def get_sound(self, sound_id: int) -> "Sound | None":
+    def get_sound(self, sound_id: int) -> "Sound":
         ...
 
     @abstractmethod
@@ -88,4 +101,8 @@ class AbstractDb(ABC):
 
     @abstractmethod
     def save_sounds(self, *sounds: "Sound"):
+        ...
+
+    @abstractmethod
+    def set_default_category(self, category_id: int | None):
         ...

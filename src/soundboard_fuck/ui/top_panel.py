@@ -1,4 +1,5 @@
 import curses
+import curses.ascii
 from typing import TYPE_CHECKING, Any
 
 from soundboard_fuck.ui.abstract_panel import AbstractPanel
@@ -24,9 +25,9 @@ class TopPanel(AbstractPanel):
         curses.KEY_PPAGE, # pgup
         curses.KEY_NPAGE, # pgdn
         curses.KEY_RESIZE,
-        27, # esc
-        ord("\t"),
-        ord("\n"),
+        curses.ascii.ESC,
+        curses.ascii.NL,
+        curses.ascii.TAB,
         *range(curses.KEY_F1, curses.KEY_F12),
     ]
 
@@ -47,6 +48,8 @@ class TopPanel(AbstractPanel):
 
     def take(self, key: "KeyPress") -> bool:
         if key.c >= 32 and key.c not in self.special_keys and not key.meta and key.s is not None:
+            if key.s == " " and not self.state.query:
+                return False
             self.state.query += key.s
             return True
 

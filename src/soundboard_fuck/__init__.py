@@ -6,13 +6,13 @@ if TYPE_CHECKING:
     from soundboard_fuck.ui.error_panel import ErrorPanel
 
 
-class LogHandler(logging.Handler):
+class LogHandler(logging.StreamHandler):
     panel: "ErrorPanel | None" = None
     cache: list[logging.LogRecord]
 
-    def __init__(self, level = logging.NOTSET):
+    def __init__(self, stream = None):
         self.cache = []
-        super().__init__(level)
+        super().__init__(stream)
 
     def emit(self, record):
         if self.panel:
@@ -20,6 +20,7 @@ class LogHandler(logging.Handler):
             self.panel.show()
         else:
             self.cache.append(record)
+            super().emit(record)
 
     def set_panel(self, panel: "ErrorPanel"):
         self.panel = panel

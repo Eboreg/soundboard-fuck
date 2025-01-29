@@ -30,6 +30,7 @@ class SqliteMixin:
             con.commit()
         except Exception as e:
             logger.error(str(e))
+            raise e
         finally:
             con.close()
 
@@ -41,6 +42,7 @@ class SqliteMixin:
             con.commit()
         except Exception as e:
             logger.error(str(e))
+            raise e
         finally:
             con.close()
 
@@ -62,6 +64,7 @@ class SqliteMixin:
                 return row[0]
         except Exception as e:
             logger.error(str(e))
+            raise e
         finally:
             con.close()
 

@@ -31,6 +31,7 @@ class Screen:
         self.panels.append(panel)
 
     def attach_window(self, window: curses.window):
+        curses.use_default_colors()
         self.window = window
         if self.border:
             window.box()
@@ -70,14 +71,7 @@ class Screen:
 
     def loop(self):
         while not self.quit:
-            wch = self.window.get_wch()
-            key = KeyPress(wch, meta=False)
-
-            if key.c == 27:
-                self.window.nodelay(True)
-                c = self.window.getch()
-                key = KeyPress(c, meta=True)
-                self.window.nodelay(False)
+            key = KeyPress.get(self.window)
 
             if key.c == curses.KEY_RESIZE:
                 self.on_resize()
@@ -129,7 +123,9 @@ class Screen:
             curses.doupdate()
 
     def setup(self):
-        ...
+        curses.curs_set(0)
+        curses.set_escdelay(10)
+        self.window.keypad(True)
 
     def show_panel(self, panel: _PanelT, refresh: bool = True):
         panel.panel.show()
