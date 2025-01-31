@@ -81,18 +81,17 @@ class SoundPanel(AbstractPanel):
         selected = self.selected_object
         if isinstance(selected, Sound):
             if self._is_playing(selected.id):
-                if self.state.repress_mode == RepressMode.STOP:
+                if self.state.meta.repress_mode == RepressMode.STOP:
                     self._stop_sound(selected.id)
-                elif self.state.repress_mode == RepressMode.OVERDUB:
+                elif self.state.meta.repress_mode == RepressMode.OVERDUB:
                     self._play_sound(selected)
-                elif self.state.repress_mode == RepressMode.RESTART:
+                elif self.state.meta.repress_mode == RepressMode.RESTART:
                     self._stop_sound(selected.id)
                     self._play_sound(selected)
             else:
                 self._play_sound(selected)
         elif isinstance(selected, Category):
-            category = selected.copy(is_expanded=not selected.is_expanded)
-            self.db.save_categories(category)
+            self.db.category_adapter.update(selected, is_expanded=not selected.is_expanded)
 
     def _on_progress(self, progress: "PlayerProgress"):
         if self.progresses.append(progress):
@@ -127,8 +126,7 @@ class SoundPanel(AbstractPanel):
             except ValueError:
                 pass
         if player.progress >= 0.5:
-            sound = player.sound.copy(play_count=player.sound.play_count + 1)
-            self.db.save_sounds(sound)
+            self.db.sound_adapter.update(player.sound, play_count=player.sound.play_count + 1)
 
     def _play_sound(self, sound: "Sound"):
         player = WavPlayer(sound=sound, p=self.pyaudio, on_stop=self._on_stop, on_progress=self._on_progress)
@@ -193,7 +191,11 @@ class SoundPanel(AbstractPanel):
         for player in [p for p in self.currently_playing if p.sound.id == sound_id]:
             player.stop()
 
+    def cleanup(self):
+        self.stop_all()
+
     def contents(self):
+        super().contents()
         selected = self.sounds.selected
         self.sounds.update_offset(self.max_y, selected.idx if selected else None)
         for pos in range(self.max_y):

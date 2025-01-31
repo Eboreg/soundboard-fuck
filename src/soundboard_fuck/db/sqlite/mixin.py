@@ -3,7 +3,7 @@ import sqlite3
 from enum import Enum
 from typing import Any, TypeVar
 
-from soundboard_fuck.db.sqlite.sql_column import SqlColumn, SqlType
+from soundboard_fuck.db.sqlite.sql_column import SqlType
 from soundboard_fuck.db.sqlite.wrappers import FetchOneWrapper
 
 
@@ -13,14 +13,6 @@ logger = logging.getLogger(__name__)
 
 class SqliteMixin:
     db_name: str
-
-    def create_table(self, name: str, columns: dict[str, SqlColumn]):
-        column_stmts = ", ".join(v.create_stmt(k) for k, v in columns.items())
-        if self.sqlite_version_gte(3, 3, 0):
-            sql = f"CREATE TABLE IF NOT EXISTS {name}({column_stmts})"
-        else:
-            sql = f"CREATE TABLE {name}({column_stmts})"
-        self.execute(sql)
 
     def execute(self, query: str, parameters: "sqlite3._Parameters | None" = None):
         con = sqlite3.connect(self.db_name)

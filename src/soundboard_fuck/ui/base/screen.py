@@ -43,7 +43,8 @@ class Screen:
         self.loop()
 
     def cleanup(self):
-        ...
+        for panel in self.panels:
+            panel.cleanup()
 
     def create_panels(self) -> list[_PanelT]:
         return []
@@ -106,6 +107,8 @@ class Screen:
             if panel.window.is_wintouched() or force:
                 curses.panel.update_panels()
                 if force:
+                    if panel.border:
+                        panel.window.box()
                     panel.contents()
                 panel.window.noutrefresh()
                 for p in sorted(p for p in self.panels if p.z_index > panel.z_index and p.is_visible):

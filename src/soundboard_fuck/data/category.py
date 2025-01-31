@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from soundboard_fuck.data.model import Model
 from soundboard_fuck.ui.colors import ColorScheme
 
 
@@ -10,33 +11,15 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Category:
-    id: int
+class Category(Model):
     name: str
     order: int
     colors: ColorScheme
-    is_default: bool
-    is_expanded: bool
-    sound_count: int
-    duration_ms: int
-
-    def copy(
-        self,
-        name: str | None = None,
-        order: int | None = None,
-        colors: ColorScheme | None = None,
-        is_expanded: bool | None = None,
-    ):
-        return Category(
-            id=self.id,
-            is_default=self.is_default,
-            name=name if name is not None else self.name,
-            order=order if order is not None else self.order,
-            colors=colors if colors is not None else self.colors,
-            is_expanded=is_expanded if is_expanded is not None else self.is_expanded,
-            sound_count=self.sound_count,
-            duration_ms=self.duration_ms,
-        )
+    sound_count: int = 0
+    duration_ms: int = 0
+    is_expanded: bool = True
+    is_default: bool = False
+    id: int | None = None
 
     def with_sounds(self, sounds: "list[Sound]") -> "CategoryWithSounds":
         from soundboard_fuck.data.category_with_sounds import (

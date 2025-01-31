@@ -1,5 +1,8 @@
+from pathlib import Path
+import re
 import string
 from typing import TypeVar
+from platformdirs import user_config_dir
 
 
 _Number = TypeVar("_Number", int, float)
@@ -18,6 +21,12 @@ def coerce_between(value: _Number, min_value: _Number, max_value: _Number) -> _N
 def coerce_at_least(value: _Number, min_value: _Number) -> _Number:
     if value < min_value:
         return min_value
+    return value
+
+
+def coerce_at_most(value: _Number, max_value: _Number) -> _Number:
+    if value > max_value:
+        return max_value
     return value
 
 
@@ -61,3 +70,39 @@ def format_milliseconds(ms: float | int):
     if minutes > 0:
         return f"{minutes:02d}m{seconds:02.0f}s"
     return f"{seconds:.2f}s"
+
+
+def get_config_dir():
+    path = Path(user_config_dir("soundboard-fuck"))
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def get_local_sounds_dir():
+    path = get_config_dir() / "sounds"
+    path.mkdir(exist_ok=True)
+    return path
+
+
+def split_to_rows(text: str, width: int):
+    text = re.sub(r" {2,}", " ", text)
+    hyphensplit: list[str] = [t for t in re.split(r"(.*?-)", text) if t]
+    words = [tt for t in hyphensplit for tt in t.split(" ")]
+    lines = []
+    line = ""
+    for word in words:
+        if len(word) > width:
+            lines.append(line)
+            lines.append(word[:width])
+            line = ""
+            word = word[width:]
+        if len(line) + len(word) + 1 > width:
+            lines.append(line)
+            line = ""
+        if not line or line.endswith("-"):
+            line += word
+        else:
+            line += " " + word
+    if line:
+        lines.append(line)
+    return lines

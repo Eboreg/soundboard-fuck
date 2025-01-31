@@ -77,7 +77,7 @@ class Input(FormElement[str]):
     def get_width(self):
         if self.width is not None:
             return self.width
-        return self.parent.getmaxyx()[1] - self.x - 2
+        return self.parent.getmaxyx()[1] - self.x - 3
 
     def validate_box(self, ch: int) -> int:
         self.last_key = KeyPress(ch)

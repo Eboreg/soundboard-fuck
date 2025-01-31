@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Self
 
 from soundboard_fuck.ui.base.panel_placement import PanelPlacement
 from soundboard_fuck.ui.base.size import Size
-from soundboard_fuck.utils import coerce_at_least
+from soundboard_fuck.utils import coerce_at_least, split_to_rows
 
 
 if TYPE_CHECKING:
@@ -23,6 +23,7 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
     create_hidden: bool = False
     panel: "curses.panel._Curses_Panel"  # pylint: disable=no-member
     window: curses.window
+    title: str | None = None
 
     def __init__(self, border: bool | None = None, z_index: int | None = None, create_hidden: bool | None = None):
         if z_index is not None:
@@ -44,7 +45,7 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
     def width(self) -> int:
         width = self.window.getmaxyx()[1]
         if self.border:
-            return width - 1
+            return width - 3
         return width
 
     def __eq__(self, other):
@@ -64,12 +65,16 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
             self.hide(refresh=False)
         self.setup()
 
+    def cleanup(self):
+        ...
+
     def clear_line(self, x: int, y: int, width: int | None = None):
         self.set_line(x, y, "", width=width)
 
-    @abstractmethod
     def contents(self):
-        ...
+        if self.border:
+            self.window.box()
+            self.show_title()
 
     @abstractmethod
     def get_placement(self, parent: Size) -> PanelPlacement:
@@ -105,18 +110,13 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
         text: str,
         width: int | None = None,
         attr: int | None = None,
-        padding: str = " ",
     ):
-        padding = padding[0] or " "
         if width is None:
             final_width = self.width - x - 1
             if self.border:
                 final_width -= 2
         else:
             final_width = width
-        if self.border:
-            x += 2
-            y += 1
         text = f"{text:{final_width}.{final_width}s}"
         self.window.addstr(y, x, text)
         if attr is not None:
@@ -125,11 +125,25 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
             else:
                 self.window.chgat(y, x, -1, attr)
 
-    def set_title(self, text: str):
-        text = f"[ {text} ]"
-        if self.border:
-            x = coerce_at_least(int((self.width - len(text)) / 2), 0)
-            self.window.addstr(0, x, text)
+    def set_multiline(
+        self,
+        x: int,
+        y: int,
+        text: str,
+        width: int | None = None,
+        attr: int | None = None,
+    ):
+        if width is None:
+            width = self.width - x - 1
+            if self.border:
+                width -= 2
+        rows = split_to_rows(text, width)
+        for idx, row in enumerate(rows):
+            if attr is not None:
+                self.window.addstr(y + idx, x, row, attr)
+            else:
+                self.window.addstr(y + idx, x, row)
+        return len(rows)
 
     def set_zindex(self, value: int, refresh: bool = True):
         if value != self.z_index:
@@ -146,6 +160,12 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
 
     def show(self):
         self.screen.show_panel(self)
+
+    def show_title(self):
+        if self.title and self.border:
+            text = f"[ {self.title} ]"
+            x = coerce_at_least(int((self.width - len(text)) / 2), 0)
+            self.window.addstr(0, x, text)
 
     def take(self, key: "KeyPress") -> bool:
         return False

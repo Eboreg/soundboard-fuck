@@ -6,6 +6,7 @@ from soundboard_fuck.enums import RepressMode
 
 
 if TYPE_CHECKING:
+    from soundboard_fuck.data.meta import Meta
     from soundboard_fuck.data.category import Category
     from soundboard_fuck.data.category_with_sounds import CategoryWithSounds
     from soundboard_fuck.data.sound import Sound
@@ -38,13 +39,13 @@ class AbstractState(ABC):
 
 class State(AbstractState):
     query: str = ""
-    repress_mode: RepressMode
     show_help: bool = False
     show_sound_batch_edit: bool = False
     selected_sound_id: int | None = None
     selected_category_id: int | None = None
     selected_sounds: "set[Sound]"
     categories_with_sounds: "list[CategoryWithSounds]"
+    meta: "Meta"
     _resize_listeners: list[Callable]
 
     @property
@@ -76,28 +77,29 @@ class State(AbstractState):
         self._resize_listeners = []
         self.selected_sounds = set()
         self.categories_with_sounds = self._db.list_categories_with_sounds()
-        self.repress_mode = self._db.get_repress_mode()
+        self.meta = self._db.meta_adapter.get()
 
     def add_resize_listener(self, listener: Callable):
         self._resize_listeners.append(listener)
 
     def cycle_repress_mode(self):
-        if self.repress_mode == RepressMode.STOP:
-            self.repress_mode = RepressMode.RESTART
-        elif self.repress_mode == RepressMode.RESTART:
-            self.repress_mode = RepressMode.OVERDUB
-        elif self.repress_mode == RepressMode.OVERDUB:
-            self.repress_mode = RepressMode.STOP
-        self._db.set_repress_mode(self.repress_mode)
+        repress_mode = self.meta.repress_mode
+        if repress_mode == RepressMode.STOP:
+            repress_mode = RepressMode.RESTART
+        elif repress_mode == RepressMode.RESTART:
+            repress_mode = RepressMode.OVERDUB
+        elif repress_mode == RepressMode.OVERDUB:
+            repress_mode = RepressMode.STOP
+        self._db.meta_adapter.update(self.meta, repress_mode=repress_mode)
 
-    def filter_sounds(self, sounds: "list[Sound]") -> "list[Sound]":
-        return [s for s in sounds if self.query.lower() in s.name.lower()]
+    def list_categories(self) -> "list[Category]":
+        return [cws.category for cws in self.categories_with_sounds]
 
     def on_db_change(self, table: str):
         if table in ("sounds", "categories"):
             self.categories_with_sounds = self._db.list_categories_with_sounds(self.query)
         elif table == "meta":
-            self.repress_mode = self._db.get_repress_mode()
+            self.meta = self._db.meta_adapter.get()
 
     def on_resize(self):
         for listener in self._resize_listeners:

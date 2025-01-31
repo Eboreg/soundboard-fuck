@@ -17,6 +17,7 @@ class Select(ABC, Generic[_T]):
     dropdown_panel: "curses.panel._Curses_Panel | None" = None  # pylint: disable=no-member
     options: list[_T]
     window: curses.window
+    label: str = ""
 
     def __init__(
         self,
@@ -28,6 +29,8 @@ class Select(ABC, Generic[_T]):
         inactive_color: int = 0,
         active_color: int = 0,
         selected_color: int = 0,
+        value: _T | None = None,
+        label: str | None = None,
     ):
         self.inactive_color = curses.color_pair(inactive_color)
         self.active_color = curses.color_pair(active_color)
@@ -37,15 +40,21 @@ class Select(ABC, Generic[_T]):
         self.width = width
         self.x = x
         self.y = y
+        if label is not None:
+            self.label = label
+        if value:
+            self.value = value
 
     @abstractmethod
-    def print_label(self, option: _T, window: curses.window, x: int, y: int, width: int):
+    def print_option_label(self, option: _T, window: curses.window, x: int, y: int, width: int):
         ...
 
     def activate(self) -> KeyPress:
         self.draw(True)
         while True:
             key = KeyPress.get(self.window)
+            value = self.get_value()
+
             if key.c == curses.KEY_RESIZE:
                 return key
             if key.c in (curses.ascii.SP, curses.ascii.NL):
@@ -55,7 +64,7 @@ class Select(ABC, Generic[_T]):
                 self.is_open = False
                 self.draw(True)
             elif self.is_open and key.c in (curses.KEY_UP, curses.KEY_DOWN):
-                selected_idx = self.options.index(self.value)
+                selected_idx = self.options.index(value)
                 if key.c == curses.KEY_UP:
                     new_idx = selected_idx - 1 if selected_idx > 0 else len(self.options) - 1
                 else:
@@ -75,14 +84,16 @@ class Select(ABC, Generic[_T]):
                 return key
 
     def draw(self, active: bool = False):
-        width = self.get_width()
-        self.window = self.parent.derwin(4, width + 1, self.y, self.x)
+        width = self.get_width() - 1
+        self.window = self.parent.derwin(4, width + 2, self.y, self.x)
         color = self.active_color if active else self.inactive_color
         self.window.attron(color)
         self.draw_borders()
-        self.window.addstr(1, width - 3, "▴" if self.is_open else "▾")
+        self.window.addstr(1, width - 1, "▴" if self.is_open else "▾")
+        if self.label:
+            self.window.addstr(0, 1, f" {self.label} ")
         self.window.attroff(color)
-        self.print_label(self.value, self.window, 2, 1, width - 5)
+        self.print_option_label(self.get_value(), self.window, 2, 1, width - 5)
         self.window.refresh()
         if self.is_open:
             self.init_dropdown()
@@ -107,21 +118,22 @@ class Select(ABC, Generic[_T]):
         self.window.hline(2, 1, curses.ACS_HLINE, width - 1)
 
     def draw_dropdown(self):
+        value = self.get_value()
         height = self.get_height()
         self.draw_dropdown_borders(self.dropdown_window, height)
-        selected_idx = self.options.index(self.value)
+        selected_idx = self.options.index(value)
         start_idx = 0
         if selected_idx >= height - 1:
             start_idx = min(selected_idx, len(self.options) - height + 1)
         for idx, option in enumerate(self.options[start_idx:start_idx + height - 1]):
-            if option == self.value:
+            if option == value:
                 self.dropdown_window.attron(self.selected_color)
-            self.print_label(option, self.dropdown_window, 2, idx, self.get_width() - 4)
-            if option == self.value:
+            self.print_option_label(option, self.dropdown_window, 2, idx, self.get_width() - 3)
+            if option == value:
                 self.dropdown_window.attroff(self.selected_color)
 
     def draw_dropdown_borders(self, window: curses.window, height: int):
-        width = self.get_width() - 1
+        width = self.get_width()
         window.addch(height - 1, 0, curses.ACS_LLCORNER)
         window.addch(height - 1, width, curses.ACS_LRCORNER)
         window.vline(0, 0, curses.ACS_VLINE, height - 1)
@@ -135,10 +147,15 @@ class Select(ABC, Generic[_T]):
         end_y = min(curses.LINES, start_y + len(self.options) + 1)
         return end_y - start_y
 
+    def get_value(self) -> _T:
+        if hasattr(self, "value"):
+            return self.value
+        return self.options[0]
+
     def get_width(self):
         if self.width is not None:
             return self.width
-        return self.parent.getmaxyx()[1] - self.x - 2
+        return self.parent.getmaxyx()[1] - self.x - 3
 
     def init_dropdown(self):
         width = self.get_width()
@@ -146,5 +163,5 @@ class Select(ABC, Generic[_T]):
         start_x = parent_start_x + self.x
         start_y = parent_start_y + self.y + 3
         height = self.get_height()
-        self.dropdown_window = curses.newwin(height, width + 1, start_y, start_x)
+        self.dropdown_window = curses.newwin(height, width + 2, start_y, start_x)
         self.dropdown_panel = curses.panel.new_panel(self.dropdown_window)

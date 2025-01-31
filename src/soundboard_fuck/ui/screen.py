@@ -8,6 +8,7 @@ from soundboard_fuck.ui.bottom_panel import BottomPanel
 from soundboard_fuck.ui.category_edit_panel import CategoryEditPanel
 from soundboard_fuck.ui.error_panel import ErrorPanel
 from soundboard_fuck.ui.help_panel import HelpPanel
+from soundboard_fuck.ui.settings_panel import SettingsPanel
 from soundboard_fuck.ui.sound_batch_edit_panel import SoundBatchEditPanel
 from soundboard_fuck.ui.sound_edit_panel import SoundEditPanel
 from soundboard_fuck.ui.sound_panel import SoundPanel
@@ -19,7 +20,6 @@ if TYPE_CHECKING:
 
 
 class SoundboardScreen(Screen):
-    sound_panel: SoundPanel
     db: "AbstractDb"
     quit: bool = False
     state: State
@@ -35,23 +35,19 @@ class SoundboardScreen(Screen):
         sounds = get_test_sounds(category.id)
         for sound in sounds:
             sound.duration_ms = Sound.extract_duration_ms(sound.path)
-        self.db.save_sounds(*sounds)
-
-    def cleanup(self):
-        self.sound_panel.stop_all()
+        self.db.sound_adapter.bulk_insert(sounds)
 
     def create_panels(self):
-        self.sound_panel = SoundPanel(state=self.state, db=self.db)
-
         return [
             CategoryEditPanel(state=self.state, db=self.db, z_index=2),
             SoundEditPanel(state=self.state, db=self.db, z_index=2),
             SoundBatchEditPanel(state=self.state, db=self.db, z_index=2),
             HelpPanel(state=self.state, z_index=2),
             TopPanel(state=self.state),
-            self.sound_panel,
+            SoundPanel(state=self.state, db=self.db),
             BottomPanel(state=self.state),
             ErrorPanel(state=self.state, z_index=1),
+            SettingsPanel(state=self.state, db=self.db, z_index=2),
         ]
 
     def handle_keypress(self, key):

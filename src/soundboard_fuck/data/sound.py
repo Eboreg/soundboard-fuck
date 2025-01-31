@@ -3,17 +3,18 @@ from pathlib import Path
 
 from pydub import AudioSegment
 
+from soundboard_fuck.data.model import Model
 from soundboard_fuck.ui.colors import ColorScheme
-from soundboard_fuck.utils import str_to_floats
+from soundboard_fuck.utils import get_local_sounds_dir, str_to_floats
 
 
 @dataclass
-class Sound:
+class Sound(Model):
     name: str
-    id: int
     path: Path
     category_id: int
-    colors: ColorScheme
+    colors: ColorScheme = ColorScheme.BLUE
+    id: int | None = None
     duration_ms: int | None = None
     play_count: int = 0
 
@@ -31,24 +32,13 @@ class Sound:
     def __hash__(self):
         return self.id
 
-    def copy(
-        self,
-        name: str | None = None,
-        path: Path | None = None,
-        duration_ms: int | None = None,
-        play_count: int | None = None,
-        category_id: int | None = None,
-        colors: ColorScheme | None = None,
-    ):
-        return Sound(
-            name=name if name is not None else self.name,
-            id=self.id,
-            path=path if path is not None else self.path,
-            duration_ms=duration_ms if duration_ms is not None else self.duration_ms,
-            play_count=play_count if play_count is not None else self.play_count,
-            category_id=category_id if category_id is not None else self.category_id,
-            colors=colors if colors is not None else self.colors,
-        )
+    def copy_to_wav(self):
+        segment: AudioSegment = AudioSegment.from_file(file=self.path, format=self.format)
+        filename = self.path.stem + ".wav"
+        path = get_local_sounds_dir() / filename
+        with path.open("wb") as f:
+            segment.export(f.name, "wav")
+        return path
 
     @classmethod
     def extract_duration_ms(cls, path: Path) -> int | None:

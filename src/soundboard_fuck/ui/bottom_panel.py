@@ -7,6 +7,7 @@ from soundboard_fuck.ui.base.panel_placement import PanelPlacement
 
 class BottomPanel(AbstractPanel):
     def contents(self):
+        super().contents()
         selected_sound = self.state.selected_sound
         selected_sounds = self.state.selected_sounds
 

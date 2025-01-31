@@ -6,7 +6,9 @@ from soundboard_fuck.ui.colors import ColorScheme
 
 
 class ColorSelect(Select[ColorScheme], FormElement[ColorScheme]):
-    def print_label(self, option, window, x, y, width):
+    label = "Colour"
+
+    def print_option_label(self, option, window, x, y, width):
         label_width = width - 2
         label = f" {option.value.label}"
         color = curses.color_pair(option.value.selected)

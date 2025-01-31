@@ -6,9 +6,6 @@ from soundboard_fuck.ui.base.panel_placement import PanelPlacement
 class ErrorPanel(AbstractPanel):
     create_hidden = True
 
-    def contents(self):
-        ...
-
     def get_placement(self, parent):
         return PanelPlacement(x=61, y=3, width=parent.width - 62, height=parent.height - 3, parent=parent)
 

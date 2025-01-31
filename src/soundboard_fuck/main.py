@@ -1,10 +1,13 @@
 import argparse
+from contextlib import redirect_stderr, redirect_stdout
 import curses
 import logging
 import sys
 from pathlib import Path
 
+from soundboard_fuck import log_handler
 from soundboard_fuck.data.sound import Sound
+from soundboard_fuck.db.sqlite.comparison import NotLike
 from soundboard_fuck.db.sqlitedb import SqliteDb
 from soundboard_fuck.ui.screen import SoundboardScreen
 
@@ -42,12 +45,12 @@ if __name__ == "__main__":
             )
     elif args.clear_orphans:
         for s in [s for s in db.list_sounds() if not s.path.exists()]:
-            db.delete_sound(s.id)
+            db.sound_adapter.delete(id=s.id)
             sys.stdout.write(f"Deleted {s.name}\n")
     elif subparser == "add":
         existing_paths = [s.path for s in db.list_sounds()]
         if args.category:
-            category = db.get_category(args.category)
+            category = db.category_adapter.get(id=args.category)
         else:
             category = db.get_or_create_default_category()
         for path in [Path(p).absolute() for p in args.path]:
@@ -57,11 +60,21 @@ if __name__ == "__main__":
                 sys.stderr.write(f"Not adding {path} (duplicate)\n")
                 continue
             try:
-                duration_ms = Sound.extract_duration_ms(path)
-                db.create_sound(name=path.stem, path=path, category_id=category.id, duration_ms=duration_ms)
+                db.sound_adapter.insert(
+                    Sound(
+                        name=path.stem,
+                        path=path,
+                        category_id=category.id,
+                        duration_ms=Sound.extract_duration_ms(path),
+                    )
+                )
                 sys.stdout.write(f"Added {path}\n")
             except Exception as e:
                 logger.error("Error adding %s", path, exc_info=e)
     else:
-        screen = SoundboardScreen(db=db)
-        curses.wrapper(screen.attach_window)
+        with redirect_stderr(log_handler), redirect_stdout(log_handler):
+            some_sounds = db.sound_adapter.list(path=NotLike("%.wav"))
+            for sound in some_sounds:
+                db.copy_sound_to_wav(sound)
+            screen = SoundboardScreen(db=db)
+            curses.wrapper(screen.attach_window)

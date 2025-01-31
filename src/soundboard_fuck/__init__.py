@@ -18,6 +18,7 @@ class LogHandler(logging.StreamHandler):
         if self.panel:
             self.panel.window.addstr(record.getMessage() + "\n")
             self.panel.show()
+            self.panel.redraw(force=True)
         else:
             self.cache.append(record)
             super().emit(record)
@@ -27,6 +28,9 @@ class LogHandler(logging.StreamHandler):
         for record in self.cache:
             self.emit(record)
         self.cache = []
+
+    def write(self, data):
+        self.emit(logging.makeLogRecord({"level": logging.ERROR, "msg": str(data)}))
 
 
 log_handler = LogHandler()
