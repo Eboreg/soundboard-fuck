@@ -2,11 +2,11 @@ import curses
 import curses.panel
 from time import sleep
 
-from soundboard_fuck.ui.base.panel import Panel
+from soundboard_fuck.ui.base.panels.base_panel import BasePanel
 from soundboard_fuck.ui.base.screen import Screen
 
 
-class TestPanel(Panel):
+class TestPanel(BasePanel):
     text: str = ""
 
     def __init__(self, text: str, border = False, z_index = 0):

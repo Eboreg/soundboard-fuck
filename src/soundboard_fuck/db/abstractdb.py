@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 from soundboard_fuck.data.category_with_sounds import CategoryWithSounds
@@ -7,8 +8,8 @@ from soundboard_fuck.ui.colors import ColorScheme
 
 
 if TYPE_CHECKING:
-    from soundboard_fuck.data.meta import Meta
     from soundboard_fuck.data.category import Category
+    from soundboard_fuck.data.meta import Meta
     from soundboard_fuck.data.sound import Sound
 
 
@@ -58,6 +59,20 @@ class AbstractDb(ABC):
         assert category.id is not None
         self.set_default_category(category.id)
         return self.category_adapter.get(id=category.id)
+
+    def insert_sound(self, path: Path, category_id: int | None = None) -> "Sound":
+        from soundboard_fuck.data.sound import Sound
+
+        if category_id is None:
+            category_id = self.get_or_create_default_category().id
+        return self.sound_adapter.insert(
+            Sound(
+                name=path.stem,
+                path=path,
+                category_id=category_id,
+                duration_ms=Sound.extract_duration_ms(path),
+            )
+        )
 
     def list_categories_with_sounds(self, query: str = "") -> "list[CategoryWithSounds]":
         if query:

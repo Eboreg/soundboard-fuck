@@ -21,6 +21,10 @@ class Category(Model):
     is_default: bool = False
     id: int | None = None
 
+    @property
+    def list_fields(self):
+        return self.colors, self.name, self.sound_count, self.duration_ms, self.is_expanded
+
     def with_sounds(self, sounds: "list[Sound]") -> "CategoryWithSounds":
         from soundboard_fuck.data.category_with_sounds import (
             CategoryWithSounds,

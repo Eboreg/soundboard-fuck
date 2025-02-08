@@ -2,22 +2,19 @@ import curses
 import curses.ascii
 from typing import TYPE_CHECKING, Any
 
-from soundboard_fuck.ui.abstract_panel import AbstractPanel
+from soundboard_fuck.ui.panels.abstract_panel import AbstractPanel
 from soundboard_fuck.ui.base.panel_placement import CenteredPanelPlacement
 
 
 if TYPE_CHECKING:
     from soundboard_fuck.keypress import KeyPress
-    from soundboard_fuck.state import State
 
 
 class HelpPanel(AbstractPanel):
     create_hidden = True
     border = True
     title = "Help"
-
-    def __init__(self, state: "State", z_index = 0):
-        super().__init__(state=state, z_index=z_index)
+    is_popup = True
 
     def contents(self):
         super().contents()
@@ -37,22 +34,20 @@ class HelpPanel(AbstractPanel):
             "Esc: Close open popup",
             "Alt+E: Edit selected sound/category",
             "Alt+N: Add new category",
+            "Alt+S: Settings",
+            "Alt+A: Add sounds",
         ]
 
     def on_state_change(self, name: str, value: Any):
-        if name == "meta" and self.state.show_help:
+        if name == "meta" and self.is_visible:
             self.redraw(force=True)
-        if name == "show_help":
-            if value is True:
-                self.show()
-            else:
-                self.hide()
 
     def take(self, key: "KeyPress") -> bool:
-        if key.meta and key.s == "h" and not self.state.show_help:
-            self.state.show_help = True
+        if not self.state.is_popup_open:
+            if key.meta and key.s == "h":
+                self.show()
+                return True
+        if key.c == curses.ascii.ESC and self.is_visible:
+            self.hide()
             return True
-        if key.c == curses.ascii.ESC and self.state.show_help:
-            self.state.show_help = False
-            return True
-        return self.state.show_help
+        return self.is_visible

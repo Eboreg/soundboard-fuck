@@ -8,14 +8,14 @@ from pyaudio import PyAudio
 from soundboard_fuck.data.category import Category
 from soundboard_fuck.data.sound import Sound
 from soundboard_fuck.data.soundlist import SoundList
-from soundboard_fuck.db.abstractdb import AbstractDb
 from soundboard_fuck.enums import RepressMode
 from soundboard_fuck.player.wavplayer import WavPlayer
 from soundboard_fuck.progress_collection import ProgressCollection
-from soundboard_fuck.ui.abstract_panel import AbstractPanel
+from soundboard_fuck.ui.panels.abstract_panel import AbstractPanel
 from soundboard_fuck.ui.base.panel_placement import PanelPlacement
 from soundboard_fuck.utils import (
     coerce_at_least,
+    coerce_at_most,
     coerce_between,
     format_milliseconds,
 )
@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from soundboard_fuck.keypress import KeyPress
     from soundboard_fuck.player.abstractplayer import AbstractPlayer
     from soundboard_fuck.player.playerprogress import PlayerProgress
-    from soundboard_fuck.state import State
 
 
 class SoundPanel(AbstractPanel):
@@ -35,9 +34,8 @@ class SoundPanel(AbstractPanel):
     pyaudio: PyAudio
     progresses: ProgressCollection
 
-    def __init__(self, state: "State", db: AbstractDb, border = False, z_index = 0):
-        super().__init__(state=state, border=border, z_index=z_index)
-        self.db = db
+    def __init__(self, state, db, border=None, z_index=None, create_hidden=None, is_popup=None):
+        super().__init__(state, db, border, z_index, create_hidden, is_popup)
         self.sounds = SoundList(
             categories_with_sounds=self.state.categories_with_sounds,
             on_selected_change=self._on_selected_change,
@@ -58,11 +56,6 @@ class SoundPanel(AbstractPanel):
             return selected.obj
         return None
 
-    def _color_pair(self, pair_number: int) -> int | None:
-        if curses.has_colors():
-            return curses.color_pair(pair_number)
-        return None
-
     def _is_playing(self, sound_id: int) -> bool:
         return len([p for p in self.currently_playing if p.sound.id == sound_id]) > 0
 
@@ -70,11 +63,11 @@ class SoundPanel(AbstractPanel):
         new_idx = coerce_at_least(new_idx, 0)
         indices = self.sounds.move_to_idx(new_idx, self.max_y, old_idx=old_idx)
         if indices:
-            selected = self.selected_object
             for idx in indices:
                 obj = self.sounds.get_object_at_idx(idx)
                 pos = self.sounds.idx_to_pos(idx)
-                self._render_object_at_pos(pos=pos, obj=obj, selected=selected == obj)
+                self._render_object_at_pos(pos=pos, obj=obj, selected=self.selected_object == obj)
+            self._render_scrollbar()
             self.redraw()
 
     def _on_enter_press(self):
@@ -95,9 +88,11 @@ class SoundPanel(AbstractPanel):
 
     def _on_progress(self, progress: "PlayerProgress"):
         if self.progresses.append(progress):
-            pos = self.sounds.get_sound_pos_if_visible(progress.sound_id, self.max_y)
+            self.state.play_progress = self.progresses.total
+            pos = self.sounds.get_sound_pos_if_visible(progress.sound.id, self.max_y)
             if pos is not None:
-                self._render_progress(pos, progress.progress)
+                selected = self.selected_object
+                self._render_progress(pos, progress.progress, progress.sound, selected == progress.sound)
                 self.redraw()
 
     def _on_selected_change(self, obj: "Sound | Category | None"):
@@ -114,6 +109,7 @@ class SoundPanel(AbstractPanel):
         except ValueError:
             pass
         if self.progresses.delete(player):
+            self.state.play_progress = self.progresses.total
             try:
                 idx, obj = self.sounds.find(player.sound)
                 if idx in self.sounds.get_visible_indices(self.max_y):
@@ -133,18 +129,22 @@ class SoundPanel(AbstractPanel):
         self.currently_playing.append(player)
         self.executor.submit(player.play)
 
-    def _render_progress(self, pos: int, progress: float):
-        stars = "█" * round(progress * 20)
-        self.window.addstr(pos, 30, stars)
-        if len(stars) < 20:
-            filler = "░" * (20 - len(stars))
-            self.window.addstr(pos, 30 + len(stars), filler)
+    def _render_progress(self, pos: int, progress: float, sound: Sound, selected: bool):
+        filled_attr = (
+            sound.colors.value.regular.inverse.color_pair() if selected
+            else sound.colors.value.selected.inverse.color_pair()
+        )
+        filled = "█" * round(progress * 20)
+        self.window.addstr(pos, 30, filled, filled_attr)
+        if len(filled) < 20:
+            filler = "░" * (20 - len(filled))
+            self.window.addstr(pos, 30 + len(filled), filler, sound.colors.value.selected.inverse.color_pair())
 
     def _render_object_at_pos(self, pos: int, obj: "Sound | Category | None", selected: bool):
         if obj:
             attr = (
-                self._color_pair(obj.colors.value.selected) if selected
-                else self._color_pair(obj.colors.value.regular)
+                obj.colors.value.selected.color_pair() if selected
+                else obj.colors.value.regular.color_pair()
             )
             text = obj.name
 
@@ -166,9 +166,24 @@ class SoundPanel(AbstractPanel):
             if isinstance(obj, Sound):
                 progress = self.progresses.get_sound_progress(obj.id)
                 if progress is not None:
-                    self._render_progress(pos, progress)
+                    self._render_progress(pos, progress, obj, selected)
         else:
             self.clear_line(0, pos)
+
+    def _render_scrollbar(self):
+        max_y = self.max_y
+        visible_fraction = max_y / len(self.sounds)
+        bar_height = coerce_between(round(max_y * visible_fraction), 1, max_y)
+        pre_bar = coerce_at_most(round((self.sounds.offset * max_y) / len(self.sounds)), max_y - bar_height)
+        post_bar = max_y - pre_bar - bar_height
+        x = self.width - 1
+
+        for y in range(pre_bar):
+            self.window.addstr(y, x, "░")
+        for y in range(pre_bar, pre_bar + bar_height):
+            self.window.addstr(y, x, "█")
+        for y in range(pre_bar + bar_height, pre_bar + bar_height + post_bar):
+            self.window.addstr(y, x, "░")
 
     def _step_page(self, pages: int):
         old_idx = self.sounds.selected_idx or 0
@@ -202,19 +217,25 @@ class SoundPanel(AbstractPanel):
             idx = pos + self.sounds.offset
             obj = self.sounds.get_object_at_idx(idx)
             self._render_object_at_pos(pos=pos, obj=obj, selected=selected and selected.obj == obj)
+        self._render_scrollbar()
 
     def get_placement(self, parent):
-        return PanelPlacement(x=0, y=2, width=parent.width, height=parent.height - 4, parent=parent)
+        return PanelPlacement(x=0, y=2, width=parent.width + 1, height=parent.height - 4, parent=parent)
 
     def on_state_change(self, name: str, value: Any):
         if name == "selected_sounds":
             self.redraw(force=True)
         elif name == "categories_with_sounds":
+            diff = self.sounds.visible_diff(value, self.max_y)
             self.sounds = self.sounds.copy(
                 categories_with_sounds=value,
                 on_selected_change=self._on_selected_change,
             )
-            self.redraw(force=True)
+            selected = self.selected_object
+            for (pos, obj) in diff:
+                self._render_object_at_pos(pos, obj, selected == obj)
+            self._render_scrollbar()
+            self.redraw()
 
     def stop_all(self):
         for player in self.currently_playing:
@@ -238,21 +259,23 @@ class SoundPanel(AbstractPanel):
                 return True
             return False
 
-        if key.ctrl and key.c == 0:
-            # ctrl+space activates/deactivates sound selection
-            if self.state.selected_sounds:
-                self.state.selected_sounds = set()
-            elif isinstance(self.selected_object, Sound):
-                self.state.selected_sounds = self.state.selected_sounds.union({self.selected_object})
-                self._step_single(1)
+        if key.ctrl and key.c == 0 and not self.state.selected_sounds and isinstance(selected, Sound):
+            # ctrl+space activates sound selection
+            self.state.selected_sounds = self.state.selected_sounds.union({self.selected_object})
+            self._step_single(1)
             return True
 
-        if key.c in (curses.ascii.SP, curses.ascii.NL) and self.state.selected_sounds and isinstance(selected, Sound):
-            if selected in self.state.selected_sounds:
-                self.state.selected_sounds = self.state.selected_sounds.difference({selected})
-            else:
-                self.state.selected_sounds = self.state.selected_sounds.union({selected})
-            self._step_single(1)
+        if self.state.selected_sounds and isinstance(selected, Sound):
+            if key.c in (curses.ascii.SP, curses.ascii.NL) or (key.ctrl and key.c == 0):
+                if selected in self.state.selected_sounds:
+                    self.state.selected_sounds = self.state.selected_sounds.difference({selected})
+                else:
+                    self.state.selected_sounds = self.state.selected_sounds.union({selected})
+                self._step_single(1)
+                return True
+
+        if self.state.selected_sounds and key.c == curses.ascii.ESC:
+            self.state.selected_sounds = set()
             return True
 
         if key.c in accepted_c or key.s in accepted_s:

@@ -14,9 +14,10 @@ class AbstractPlayer(ABC):
     sound: "Sound"
     is_playing: bool
     id: UUID
-    created: float
+    created: int
     on_progress: Callable[[PlayerProgress], Any]
     progress: float
+    last_progress: float | None = None
 
     @abstractmethod
     def play(self):
@@ -27,12 +28,14 @@ class AbstractPlayer(ABC):
         ...
 
     def _on_progress(self, progress: float):
-        self.progress = coerce_between(progress, 0.0, 1.0)
-        self.on_progress(
-            PlayerProgress(
-                player_id=self.id,
-                sound_id=self.sound.id,
-                created=self.created,
-                progress=self.progress,
+        progress = round(coerce_between(progress, 0.0, 1.0), 2)
+        if not hasattr(self, "progress") or progress != self.progress:
+            self.progress = progress
+            self.on_progress(
+                PlayerProgress(
+                    player_id=self.id,
+                    sound=self.sound,
+                    created=self.created,
+                    progress=self.progress,
+                )
             )
-        )

@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
 import re
 import sqlite3
-from typing import Any, TypeVar, TYPE_CHECKING
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from soundboard_fuck.data.model import _M
 from soundboard_fuck.db.base.adapter import DbAdapter
@@ -78,7 +78,7 @@ class SqliteAdapter(DbAdapter[_M], ABC):
         d = dict(zip(fields, row))
         return self._dict_to_record(d)
 
-    def _record_to_parameters(self, record: _M) -> "sqlite3._Parameters":
+    def _record_to_parameters(self, record: _M) -> "sqlite3._Parameters":  # type: ignore
         parameters = {}
 
         for column in self.column_dict.values():
@@ -115,7 +115,7 @@ class SqliteAdapter(DbAdapter[_M], ABC):
             assert record is not None
             return record
 
-    def get_column(self, column: "SqlColumn[_T]", **where) -> _T:
+    def get_column(self, column: "SqlColumn[_T]", **where) -> _T:  # type: ignore
         sql = self._get_select_stmt(where=self._get_where_stmt(where), columns=[column.name])
         with FetchOneWrapper[sqlite3.Row](self.db.db_name, sql, row_factory=sqlite3.Row) as row:
             assert row is not None

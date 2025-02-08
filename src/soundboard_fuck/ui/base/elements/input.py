@@ -1,10 +1,10 @@
 import curses
 import curses.ascii
 from curses.textpad import Textbox, rectangle
-from typing import Callable
 
 from soundboard_fuck.keypress import KeyPress
-from soundboard_fuck.ui.base.form_element import FormElement
+from soundboard_fuck.ui.base.elements.form_element import FormElement
+from soundboard_fuck.ui.colors import ColorPair
 
 
 class Input(FormElement[str]):
@@ -15,51 +15,44 @@ class Input(FormElement[str]):
 
     def __init__(
         self,
-        parent: curses.window,
-        x: int,
-        y: int,
+        parent,
+        x=None,
+        y=None,
+        value=None,
+        validator=None,
+        on_change = None,
         width: int | None = None,
-        inactive_color: int = 0,
-        active_color: int = 0,
-        error_color: int = 0,
-        value: str = "",
+        inactive_color: ColorPair | None = None,
+        active_color: ColorPair | None = None,
+        error_color: ColorPair | None = None,
         label: str = "",
-        validator: Callable[[str], str | None] | None = None,
     ):
-        self.parent = parent
-        self.x = x
-        self.y = y
+        super().__init__(parent, x, y, value, validator, on_change)
         self.width = width
-        self.inactive_color = curses.color_pair(inactive_color)
-        self.active_color = curses.color_pair(active_color)
-        self.error_color = curses.color_pair(error_color)
-        self.value = value
+        self.inactive_color = inactive_color.color_pair() if inactive_color else curses.color_pair(0)
+        self.active_color = active_color.color_pair() if active_color else curses.color_pair(0)
+        self.error_color = error_color.color_pair() if error_color else curses.color_pair(0)
         self.label = label
-        self.validator = validator
 
-    def activate(self) -> KeyPress:
-        self.draw(active=True)
-        self.window.move(0, len(self.value) + 1)
+    def get_keypress(self) -> KeyPress:
+        self.window.move(0, len(self.get_value()) + 1)
         previous_cursor = curses.curs_set(1)
         self.box = Textbox(self.window)
         self.box.edit(self.validate_box)
-        self.value = self.box.gather().strip()
+        self.set_value(self.box.gather().strip())
         curses.curs_set(previous_cursor)
-        if self.validator:
-            self.error = self.validator(self.value)
-        self.draw()
 
         assert self.last_key is not None
         return self.last_key
 
-    def draw(self, active: bool = False):
+    def draw(self):
         width = self.get_width()
         self.window = self.parent.derwin(1, width - 2, self.y + 1, self.x + 1)
         error: str | None = None
         if self.error:
             color = self.error_color
             error = f" {self.error:.{width - 4}s} "
-        elif active:
+        elif self.is_active:
             color = self.active_color
         else:
             color = self.inactive_color
@@ -70,7 +63,7 @@ class Input(FormElement[str]):
             self.parent.addstr(self.y, self.x + 1, f" {self.label} ")
         if error:
             self.parent.addstr(self.y + 2, self.x + 1, error)
-        self.window.addstr(0, 1, f"{self.value:{width - 4}s}")
+        self.window.addstr(0, 1, f"{self.get_value():{width - 4}s}")
         self.parent.attroff(color)
         self.parent.refresh()
 

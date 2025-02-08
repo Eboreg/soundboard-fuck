@@ -1,3 +1,4 @@
+import time
 from typing import TYPE_CHECKING
 
 
@@ -15,12 +16,25 @@ class ProgressCollection:
     def __contains__(self, item):
         return item in self._progresses
 
+    @property
+    def total(self) -> float | None:
+        first = min(self._progresses.values(), key=lambda p: p.created, default=None)
+        last = max(self._progresses.values(), key=lambda p: p.ends, default=None)
+
+        if first and last:
+            now = int(time.time() * 1000)
+            total = last.ends - first.created
+            elapsed = now - first.created
+            return elapsed / total
+
+        return None
+
     def append(self, progress: "PlayerProgress") -> bool:
         if (
-            not progress.sound_id in self or
-            self._progresses[progress.sound_id].created <= progress.created
+            not progress.sound.id in self or
+            self._progresses[progress.sound.id].created <= progress.created
         ):
-            self._progresses[progress.sound_id] = progress
+            self._progresses[progress.sound.id] = progress
             return True
         return False
 

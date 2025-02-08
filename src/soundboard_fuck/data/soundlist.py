@@ -4,6 +4,7 @@ from soundboard_fuck.data.category import Category
 from soundboard_fuck.data.category_with_sounds import CategoryWithSounds
 from soundboard_fuck.data.sound import Sound
 from soundboard_fuck.selected_object import SelectedObject
+from soundboard_fuck.utils import pad_with_nulls
 
 
 class SoundList:
@@ -18,14 +19,9 @@ class SoundList:
         explicitly_selected: SelectedObject | None = None,
         offset: int | None = None,
     ):
-        self.objects = []
         if offset is not None:
             self.offset = offset
-        for cws in categories_with_sounds:
-            if cws.category:
-                self.objects.append(cws.category)
-            if not cws.category or cws.category.is_expanded:
-                self.objects.extend(cws.sounds)
+        self.objects = self.prepare_objects(categories_with_sounds)
         self.on_selected_change = on_selected_change
         if explicitly_selected:
             self.explicitly_selected = explicitly_selected
@@ -128,6 +124,15 @@ class SoundList:
 
         return set()
 
+    def prepare_objects(self, categories_with_sounds: list[CategoryWithSounds]) -> list[Sound | Category]:
+        objects = []
+        for cws in categories_with_sounds:
+            if cws.category:
+                objects.append(cws.category)
+            if not cws.category or cws.category.is_expanded:
+                objects.extend(cws.sounds)
+        return objects
+
     def update_offset(self, page_size: int, selected_idx: int | None = None):
         if selected_idx is None:
             selected_idx = self.selected_idx
@@ -141,3 +146,24 @@ class SoundList:
                 self.offset = selected_idx
             elif selected_idx >= indices.stop:
                 self.offset = selected_idx - page_size + 1
+
+    def visible_diff(
+        self,
+        categories_with_sounds: list[CategoryWithSounds],
+        page_size: int
+    ) -> list[tuple[int, Sound | Category | None]]:
+        changed = []
+        _slice = slice(self.offset, self.offset + page_size)
+        old_objects = pad_with_nulls(self.objects[_slice], page_size)
+        new_objects = pad_with_nulls(self.prepare_objects(categories_with_sounds)[_slice], page_size)
+
+        for pos, (old_obj, new_obj) in enumerate(zip(old_objects, new_objects)):
+            if old_obj.__class__ != new_obj.__class__:
+                changed.append((pos, new_obj))
+            elif new_obj is not None:
+                if old_obj is None or old_obj.list_fields != new_obj.list_fields:
+                    changed.append((pos, new_obj))
+            elif old_obj is not None:
+                changed.append((pos, new_obj))
+
+        return changed

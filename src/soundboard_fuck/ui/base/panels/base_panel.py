@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 @total_ordering
-class Panel(ABC):  # pylint: disable=too-many-public-methods
+class BasePanel(ABC):  # pylint: disable=too-many-public-methods
     screen: "Screen"
     z_index: int = 0
     border: bool = False
@@ -24,14 +24,23 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
     panel: "curses.panel._Curses_Panel"  # pylint: disable=no-member
     window: curses.window
     title: str | None = None
+    is_popup: bool = False
 
-    def __init__(self, border: bool | None = None, z_index: int | None = None, create_hidden: bool | None = None):
+    def __init__(
+        self,
+        border: bool | None = None,
+        z_index: int | None = None,
+        create_hidden: bool | None = None,
+        is_popup: bool | None = None,
+    ):
         if z_index is not None:
             self.z_index = z_index
         if border is not None:
             self.border = border
         if create_hidden is not None:
             self.create_hidden = create_hidden
+        if is_popup is not None:
+            self.is_popup = is_popup
 
     @property
     def height(self) -> int:
@@ -46,7 +55,7 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
         width = self.window.getmaxyx()[1]
         if self.border:
             return width - 3
-        return width
+        return width - 1
 
     def __eq__(self, other):
         return other is self
@@ -112,7 +121,9 @@ class Panel(ABC):  # pylint: disable=too-many-public-methods
         attr: int | None = None,
     ):
         if width is None:
-            final_width = self.width - x - 1
+            final_width = self.width - x
+            # if y >= (self.height - 1):
+            #     final_width -= 1
             if self.border:
                 final_width -= 2
         else:

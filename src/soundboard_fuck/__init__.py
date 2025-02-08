@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from soundboard_fuck.ui.error_panel import ErrorPanel
+    from soundboard_fuck.ui.panels.error_panel import ErrorPanel
 
 
 class LogHandler(logging.StreamHandler):
@@ -16,9 +16,8 @@ class LogHandler(logging.StreamHandler):
 
     def emit(self, record):
         if self.panel:
-            self.panel.window.addstr(record.getMessage() + "\n")
+            self.panel.window.addstr(record.getMessage().strip() + "\n")
             self.panel.show()
-            self.panel.redraw(force=True)
         else:
             self.cache.append(record)
             super().emit(record)
@@ -30,7 +29,8 @@ class LogHandler(logging.StreamHandler):
         self.cache = []
 
     def write(self, data):
-        self.emit(logging.makeLogRecord({"level": logging.ERROR, "msg": str(data)}))
+        if data:
+            self.emit(logging.makeLogRecord({"level": logging.ERROR, "msg": str(data)}))
 
 
 log_handler = LogHandler()

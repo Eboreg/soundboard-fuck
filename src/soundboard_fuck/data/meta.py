@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from soundboard_fuck.data.model import Model
 from soundboard_fuck.enums import RepressMode
 

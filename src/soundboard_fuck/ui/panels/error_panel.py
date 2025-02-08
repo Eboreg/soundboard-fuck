@@ -1,5 +1,5 @@
 from soundboard_fuck import log_handler
-from soundboard_fuck.ui.abstract_panel import AbstractPanel
+from soundboard_fuck.ui.panels.abstract_panel import AbstractPanel
 from soundboard_fuck.ui.base.panel_placement import PanelPlacement
 
 

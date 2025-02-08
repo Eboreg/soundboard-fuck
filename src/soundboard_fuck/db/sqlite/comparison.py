@@ -32,3 +32,11 @@ class NotLike(Comparison):
 
     def __str__(self):
         return f" NOT LIKE '{self.value}'"
+
+
+@dataclass
+class In(Comparison):
+    value: list[Any]
+
+    def __str__(self):
+        return f" IN({', '.join(str(v) for v in self.value)})"

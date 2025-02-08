@@ -1,13 +1,12 @@
 import argparse
-from contextlib import redirect_stderr, redirect_stdout
 import curses
 import logging
 import sys
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from soundboard_fuck import log_handler
 from soundboard_fuck.data.sound import Sound
-from soundboard_fuck.db.sqlite.comparison import NotLike
 from soundboard_fuck.db.sqlitedb import SqliteDb
 from soundboard_fuck.ui.screen import SoundboardScreen
 
@@ -15,7 +14,7 @@ from soundboard_fuck.ui.screen import SoundboardScreen
 logger = logging.getLogger(__name__)
 
 
-if __name__ == "__main__":
+def main():
     db = SqliteDb()
     parser = argparse.ArgumentParser()
 
@@ -73,8 +72,9 @@ if __name__ == "__main__":
                 logger.error("Error adding %s", path, exc_info=e)
     else:
         with redirect_stderr(log_handler), redirect_stdout(log_handler):
-            some_sounds = db.sound_adapter.list(path=NotLike("%.wav"))
-            for sound in some_sounds:
-                db.copy_sound_to_wav(sound)
             screen = SoundboardScreen(db=db)
             curses.wrapper(screen.attach_window)
+
+
+if __name__ == "__main__":
+    main()

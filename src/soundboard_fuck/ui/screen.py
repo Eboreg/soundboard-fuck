@@ -3,16 +3,17 @@ from typing import TYPE_CHECKING
 from soundboard_fuck.data.sound import Sound, get_test_sounds
 from soundboard_fuck.state import State
 from soundboard_fuck.ui import colors
+from soundboard_fuck.ui.panels.file_selection_panel import FileSelectionPanel
 from soundboard_fuck.ui.base.screen import Screen
-from soundboard_fuck.ui.bottom_panel import BottomPanel
-from soundboard_fuck.ui.category_edit_panel import CategoryEditPanel
-from soundboard_fuck.ui.error_panel import ErrorPanel
-from soundboard_fuck.ui.help_panel import HelpPanel
-from soundboard_fuck.ui.settings_panel import SettingsPanel
-from soundboard_fuck.ui.sound_batch_edit_panel import SoundBatchEditPanel
-from soundboard_fuck.ui.sound_edit_panel import SoundEditPanel
-from soundboard_fuck.ui.sound_panel import SoundPanel
-from soundboard_fuck.ui.top_panel import TopPanel
+from soundboard_fuck.ui.panels.bottom_panel import BottomPanel
+from soundboard_fuck.ui.panels.category_edit_panel import CategoryEditPanel
+from soundboard_fuck.ui.panels.error_panel import ErrorPanel
+from soundboard_fuck.ui.panels.help_panel import HelpPanel
+from soundboard_fuck.ui.panels.settings_panel import SettingsPanel
+from soundboard_fuck.ui.panels.sound_batch_edit_panel import SoundBatchEditPanel
+from soundboard_fuck.ui.panels.sound_edit_panel import SoundEditPanel
+from soundboard_fuck.ui.panels.sound_panel import SoundPanel
+from soundboard_fuck.ui.panels.top_panel import TopPanel
 
 
 if TYPE_CHECKING:
@@ -27,7 +28,7 @@ class SoundboardScreen(Screen):
     def __init__(self, db: "AbstractDb", border = False):
         super().__init__(border)
         self.db = db
-        self.state = State(self.db)
+        self.state = State(self.db, self)
         self.state.add_resize_listener(self.on_resize)
 
     def bootstrap_data(self):
@@ -42,12 +43,13 @@ class SoundboardScreen(Screen):
             CategoryEditPanel(state=self.state, db=self.db, z_index=2),
             SoundEditPanel(state=self.state, db=self.db, z_index=2),
             SoundBatchEditPanel(state=self.state, db=self.db, z_index=2),
-            HelpPanel(state=self.state, z_index=2),
-            TopPanel(state=self.state),
+            HelpPanel(state=self.state, db=self.db, z_index=2),
+            TopPanel(state=self.state, db=self.db),
             SoundPanel(state=self.state, db=self.db),
-            BottomPanel(state=self.state),
-            ErrorPanel(state=self.state, z_index=1),
+            BottomPanel(state=self.state, db=self.db),
+            ErrorPanel(state=self.state, db=self.db, z_index=1),
             SettingsPanel(state=self.state, db=self.db, z_index=2),
+            FileSelectionPanel(state=self.state, db=self.db, z_index=2),
         ]
 
     def handle_keypress(self, key):

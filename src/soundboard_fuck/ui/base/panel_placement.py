@@ -8,7 +8,7 @@ class PanelPlacement:
     height: int
 
     def __init__(self, parent: Size, width: int, height: int, x: int = 0, y: int = 0):
-        self.width = min(width, parent.width - x)
+        self.width = min(width, parent.width - x + 1)
         self.height = min(height, parent.height - y)
         self.x = x
         self.y = y

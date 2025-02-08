@@ -3,12 +3,13 @@ from typing import TYPE_CHECKING, Any, Callable, Self
 
 from soundboard_fuck.db.abstractdb import AbstractDb
 from soundboard_fuck.enums import RepressMode
+from soundboard_fuck.ui.base.screen import Screen
 
 
 if TYPE_CHECKING:
-    from soundboard_fuck.data.meta import Meta
     from soundboard_fuck.data.category import Category
     from soundboard_fuck.data.category_with_sounds import CategoryWithSounds
+    from soundboard_fuck.data.meta import Meta
     from soundboard_fuck.data.sound import Sound
 
 
@@ -29,7 +30,7 @@ class AbstractState(ABC):
         else:
             super().__setattr__(name, value)
 
-    def on_change(self, listener: Callable[[str, Any], Any]) -> Self:
+    def add_listener(self, listener: Callable[[str, Any], Any]) -> Self:
         self._listeners.append(listener)
         return self
 
@@ -38,15 +39,24 @@ class AbstractState(ABC):
 
 
 class State(AbstractState):
-    query: str = ""
-    show_help: bool = False
-    show_sound_batch_edit: bool = False
-    selected_sound_id: int | None = None
-    selected_category_id: int | None = None
-    selected_sounds: "set[Sound]"
+    _resize_listeners: list[Callable]
     categories_with_sounds: "list[CategoryWithSounds]"
     meta: "Meta"
-    _resize_listeners: list[Callable]
+    play_progress: float | None = None
+    query: str = ""
+    selected_category_id: int | None = None
+    selected_sound_id: int | None = None
+    selected_sounds: "set[Sound]"
+    show_sound_batch_edit: bool = False
+
+    @property
+    def is_popup_open(self):
+        return any(p for p in self._screen.panels if p.is_visible and p.is_popup)
+
+    @property
+    def max_category_order(self) -> int:
+        orders = [cws.category.order for cws in self.categories_with_sounds]
+        return max(orders, default=-1)
 
     @property
     def selected_category(self) -> "Category | None":
@@ -65,13 +75,9 @@ class State(AbstractState):
         except IndexError:
             return None
 
-    @property
-    def max_category_order(self) -> int:
-        orders = [cws.category.order for cws in self.categories_with_sounds]
-        return max(orders, default=-1)
-
-    def __init__(self, db: AbstractDb):
+    def __init__(self, db: AbstractDb, screen: Screen):
         super().__init__()
+        self._screen = screen
         self._db = db
         self._db.on_change(self.on_db_change)
         self._resize_listeners = []
@@ -98,6 +104,8 @@ class State(AbstractState):
     def on_db_change(self, table: str):
         if table in ("sounds", "categories"):
             self.categories_with_sounds = self._db.list_categories_with_sounds(self.query)
+            sounds = [s for cws in self.categories_with_sounds for s in cws.sounds]
+            self.selected_sounds = {s for s in self.selected_sounds if s in sounds}
         elif table == "meta":
             self.meta = self._db.meta_adapter.get()
 

@@ -1,6 +1,6 @@
+from abc import ABC
 from typing import TYPE_CHECKING
 
-from abc import ABC
 from soundboard_fuck.data.model import _M
 from soundboard_fuck.db.base.adapter import DbAdapter
 

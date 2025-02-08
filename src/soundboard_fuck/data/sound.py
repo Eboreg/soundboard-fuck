@@ -10,42 +10,52 @@ from soundboard_fuck.utils import get_local_sounds_dir, str_to_floats
 
 @dataclass
 class Sound(Model):
+    category_id: int
     name: str
     path: Path
-    category_id: int
     colors: ColorScheme = ColorScheme.BLUE
-    id: int | None = None
     duration_ms: int | None = None
+    id: int | None = None
     play_count: int = 0
 
-    name_floats: tuple[float, float] = field(init=False)
     format: str = field(init=False)
+    name_floats: tuple[float, float] = field(init=False)
 
     @property
     def duration_seconds(self) -> float | None:
         return self.duration_ms / 1000 if self.duration_ms is not None else None
 
-    def __post_init__(self):
-        self.name_floats = str_to_floats(self.name)
-        self.format = self.path.suffix.strip(".").lower()
+    @property
+    def list_fields(self):
+        return self.colors, self.name
 
     def __hash__(self):
         return self.id
 
+    def __post_init__(self):
+        self.name_floats = str_to_floats(self.name)
+        self.format = self.path.suffix.strip(".").lower()
+
     def copy_to_wav(self):
         segment: AudioSegment = AudioSegment.from_file(file=self.path, format=self.format)
-        filename = self.path.stem + ".wav"
-        path = get_local_sounds_dir() / filename
+        path = Sound.get_final_path(self.path, True)
         with path.open("wb") as f:
             segment.export(f.name, "wav")
         return path
 
-    @classmethod
-    def extract_duration_ms(cls, path: Path) -> int | None:
+    @staticmethod
+    def extract_duration_ms(path: Path) -> int | None:
         segment: AudioSegment = AudioSegment.from_file(file=path, format=path.suffix.strip(".").lower())
         if isinstance(segment.duration_seconds, (float, int)):
             return int(segment.duration_seconds * 1000)
         return None
+
+    @staticmethod
+    def get_final_path(path: Path, convert_to_wav: bool) -> Path:
+        if path.suffix.strip(".").lower() != "wav" and convert_to_wav:
+            filename = path.stem + ".wav"
+            return get_local_sounds_dir() / filename
+        return path
 
 
 def get_test_sounds(category_id: int):

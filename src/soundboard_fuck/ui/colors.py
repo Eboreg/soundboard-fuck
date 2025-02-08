@@ -3,106 +3,137 @@ import enum
 from dataclasses import dataclass
 
 
-BLACK_ON_WHITE = 10
-BLACK_ON_RED = 12
-BLACK_ON_GREEN = 13
-BLACK_ON_BLUE = 14
-BLACK_ON_CYAN = 15
-BLACK_ON_MAGENTA = 16
-BLACK_ON_YELLOW = 17
+@dataclass
+class Color:
+    r: int
+    g: int
+    b: int
+    color_number: int
 
-WHITE_ON_BLACK = 20
-WHITE_ON_DARK_RED = 22
-WHITE_ON_DARK_GREEN = 23
-WHITE_ON_DARK_BLUE = 24
-WHITE_ON_DARK_CYAN = 25
-WHITE_ON_DARK_MAGENTA = 26
-WHITE_ON_DARK_YELLOW = 27
+    def init(self):
+        curses.init_color(self.color_number, self.r, self.g, self.b)
 
-DARK_GRAY_ON_DEFAULT = 30
-RED_ON_DEFAULT = 31
+
+class Colors:
+    WHITE = Color(1000, 1000, 1000, 11)
+    RED = Color(804, 192, 192, 12)
+    GREEN = Color(51, 737, 475, 13)
+    BLUE = Color(141, 447, 784, 14)
+    CYAN = Color(0, 680, 680, 15)
+    MAGENTA = Color(680, 0, 680, 16)
+    YELLOW = Color(680, 680, 0, 17)
+    PINK = Color(900, 80, 600, 18)
+    ORANGE = Color(1000, 500, 0, 19)
+    MINT = Color(0, 1000, 700, 20)
+    GRAY = Color(600, 600, 600, 21)
+
+    BLACK = Color(0, 0, 0, 31)
+    DARK_GRAY = Color(300, 300, 300, 32)
+    DARK_RED = Color(200, 0, 0, 33)
+    DARK_GREEN = Color(0, 200, 0, 34)
+    DARK_BLUE = Color(0, 0, 200, 35)
+    DARK_CYAN = Color(0, 200, 200, 36)
+    DARK_MAGENTA = Color(200, 0, 200, 37)
+    DARK_YELLOW = Color(200, 200, 0, 38)
+    DARK_PINK = Color(300, 30, 200, 39)
+    DARK_ORANGE = Color(400, 200, 0, 40)
+    DARK_MINT = Color(0, 400, 300, 41)
+
+    @classmethod
+    def init_all(cls):
+        for value in cls.__dict__.values():
+            if isinstance(value, Color):
+                value.init()
+
+
+@dataclass
+class ColorPair:
+    fg: Color | int
+    bg: Color | int
+    pair_number: int
+
+    @property
+    def fg_int(self) -> int:
+        if isinstance(self.fg, Color):
+            return self.fg.color_number
+        return self.fg
+
+    @property
+    def bg_int(self) -> int:
+        if isinstance(self.bg, Color):
+            return self.bg.color_number
+        return self.bg
+
+    @property
+    def inverse(self):
+        return ColorPair(self.bg, self.fg, self.pair_number + 32)
+
+    def init(self):
+        inverse = self.inverse
+        curses.init_pair(self.pair_number, self.fg_int, self.bg_int)
+        curses.init_pair(inverse.pair_number, inverse.fg_int, inverse.bg_int)
+
+    def color_pair(self):
+        if curses.has_colors():
+            return curses.color_pair(self.pair_number)
+        return 0
+
+
+class ColorPairs:
+    WHITE_ON_BLACK = ColorPair(Colors.WHITE, Colors.BLACK, 11)
+    WHITE_ON_DARK_BLUE = ColorPair(Colors.WHITE, Colors.DARK_BLUE, 12)
+    WHITE_ON_DARK_CYAN = ColorPair(Colors.WHITE, Colors.DARK_CYAN, 13)
+    WHITE_ON_DARK_GREEN = ColorPair(Colors.WHITE, Colors.DARK_GREEN, 14)
+    WHITE_ON_DARK_MAGENTA = ColorPair(Colors.WHITE, Colors.DARK_MAGENTA, 15)
+    WHITE_ON_DARK_MINT = ColorPair(Colors.WHITE, Colors.DARK_MINT, 16)
+    WHITE_ON_DARK_ORANGE = ColorPair(Colors.WHITE, Colors.DARK_ORANGE, 17)
+    WHITE_ON_DARK_PINK = ColorPair(Colors.WHITE, Colors.DARK_PINK, 18)
+    WHITE_ON_DARK_RED = ColorPair(Colors.WHITE, Colors.DARK_RED, 19)
+    WHITE_ON_DARK_YELLOW = ColorPair(Colors.WHITE, Colors.DARK_YELLOW, 20)
+
+    BLACK_ON_BLUE = ColorPair(Colors.BLACK, Colors.BLUE, 21)
+    BLACK_ON_CYAN = ColorPair(Colors.BLACK, Colors.CYAN, 22)
+    BLACK_ON_GREEN = ColorPair(Colors.BLACK, Colors.GREEN, 23)
+    BLACK_ON_MAGENTA = ColorPair(Colors.BLACK, Colors.MAGENTA, 24)
+    BLACK_ON_MINT = ColorPair(Colors.BLACK, Colors.MINT, 25)
+    BLACK_ON_ORANGE = ColorPair(Colors.BLACK, Colors.ORANGE, 26)
+    BLACK_ON_PINK = ColorPair(Colors.BLACK, Colors.PINK, 27)
+    BLACK_ON_RED = ColorPair(Colors.BLACK, Colors.RED, 28)
+    BLACK_ON_WHITE = ColorPair(Colors.BLACK, Colors.WHITE, 29)
+    BLACK_ON_YELLOW = ColorPair(Colors.BLACK, Colors.YELLOW, 30)
+
+    DARK_GRAY_ON_DEFAULT = ColorPair(Colors.DARK_GRAY, -1, 31)
+    RED_ON_DEFAULT = ColorPair(Colors.RED, -1, 32)
+    GRAY_ON_DEFAULT = ColorPair(Colors.GRAY, -1, 33)
+
+    @classmethod
+    def init_all(cls):
+        for value in cls.__dict__.values():
+            if isinstance(value, ColorPair):
+                value.init()
 
 
 @dataclass
 class SchemeColors:
-    regular: int
-    selected: int
+    regular: ColorPair
+    selected: ColorPair
     label: str
 
 
 class ColorScheme(enum.Enum):
-    RED = SchemeColors(regular=WHITE_ON_DARK_RED, selected=BLACK_ON_RED, label="Red")
-    GREEN = SchemeColors(regular=WHITE_ON_DARK_GREEN, selected=BLACK_ON_GREEN, label="Green")
-    BLUE = SchemeColors(regular=WHITE_ON_DARK_BLUE, selected=BLACK_ON_BLUE, label="Blue")
-    CYAN = SchemeColors(regular=WHITE_ON_DARK_CYAN, selected=BLACK_ON_CYAN, label="Cyan")
-    MAGENTA = SchemeColors(regular=WHITE_ON_DARK_MAGENTA, selected=BLACK_ON_MAGENTA, label="Magenta")
-    YELLOW = SchemeColors(regular=WHITE_ON_DARK_YELLOW, selected=BLACK_ON_YELLOW, label="Yellow")
-    BLACK = SchemeColors(regular=WHITE_ON_BLACK, selected=BLACK_ON_WHITE, label="Black")
-
-
-@dataclass
-class Color:
-    color_number: int
-    r: int
-    g: int
-    b: int
-
-
-class Colors(enum.Enum):
-    WHITE = Color(11, 1000, 1000, 1000)
-    RED = Color(12, 804, 192, 192)
-    GREEN = Color(13, 51, 737, 475)
-    BLUE = Color(14, 141, 447, 784)
-    CYAN = Color(15, 0, 680, 680)
-    MAGENTA = Color(16, 680, 0, 680)
-    YELLOW = Color(17, 680, 680, 0)
-    BLACK = Color(21, 0, 0, 0)
-    DARK_GRAY = Color(22, 300, 300, 300)
-    DARK_RED = Color(23, 200, 0, 0)
-    DARK_GREEN = Color(24, 0, 200, 0)
-    DARK_BLUE = Color(25, 0, 0, 200)
-    DARK_CYAN = Color(26, 0, 200, 200)
-    DARK_MAGENTA = Color(27, 200, 0, 200)
-    DARK_YELLOW = Color(28, 200, 200, 0)
-
-
-def init_pair(pair_number: int, fg: Colors | int, bg: Colors | int):
-    if isinstance(fg, Colors):
-        fg = fg.value.color_number
-    if isinstance(bg, Colors):
-        bg = bg.value.color_number
-    curses.init_pair(pair_number, fg, bg)
+    RED = SchemeColors(ColorPairs.WHITE_ON_DARK_RED, ColorPairs.BLACK_ON_RED, "Red")
+    GREEN = SchemeColors(ColorPairs.WHITE_ON_DARK_GREEN, ColorPairs.BLACK_ON_GREEN, "Green")
+    BLUE = SchemeColors(ColorPairs.WHITE_ON_DARK_BLUE, ColorPairs.BLACK_ON_BLUE, "Blue")
+    CYAN = SchemeColors(ColorPairs.WHITE_ON_DARK_CYAN, ColorPairs.BLACK_ON_CYAN, "Cyan")
+    MAGENTA = SchemeColors(ColorPairs.WHITE_ON_DARK_MAGENTA, ColorPairs.BLACK_ON_MAGENTA, "Magenta")
+    YELLOW = SchemeColors(ColorPairs.WHITE_ON_DARK_YELLOW, ColorPairs.BLACK_ON_YELLOW, "Yellow")
+    WHITE = SchemeColors(ColorPairs.WHITE_ON_BLACK, ColorPairs.BLACK_ON_WHITE, "White")
+    PINK = SchemeColors(ColorPairs.WHITE_ON_DARK_PINK, ColorPairs.BLACK_ON_PINK, "Pink")
+    ORANGE = SchemeColors(ColorPairs.WHITE_ON_DARK_ORANGE, ColorPairs.BLACK_ON_ORANGE, "Orange")
+    MINT = SchemeColors(ColorPairs.WHITE_ON_DARK_MINT, ColorPairs.BLACK_ON_MINT, "Mint")
 
 
 def setup():
-    if curses.has_colors():
-        if curses.can_change_color():
-            for v in Colors:
-                curses.init_color(v.value.color_number, v.value.r, v.value.g, v.value.b)
-
-            init_pair(WHITE_ON_BLACK, Colors.WHITE, Colors.BLACK)
-            init_pair(WHITE_ON_DARK_RED, Colors.WHITE, Colors.DARK_RED)
-            init_pair(WHITE_ON_DARK_GREEN, Colors.WHITE, Colors.DARK_GREEN)
-            init_pair(WHITE_ON_DARK_BLUE, Colors.WHITE, Colors.DARK_BLUE)
-            init_pair(WHITE_ON_DARK_CYAN, Colors.WHITE, Colors.DARK_CYAN)
-            init_pair(WHITE_ON_DARK_MAGENTA, Colors.WHITE, Colors.DARK_MAGENTA)
-            init_pair(WHITE_ON_DARK_YELLOW, Colors.WHITE, Colors.DARK_YELLOW)
-
-            init_pair(BLACK_ON_WHITE, Colors.BLACK, Colors.WHITE)
-            init_pair(BLACK_ON_RED, Colors.BLACK, Colors.RED)
-            init_pair(BLACK_ON_GREEN, Colors.BLACK, Colors.GREEN)
-            init_pair(BLACK_ON_BLUE, Colors.BLACK, Colors.BLUE)
-            init_pair(BLACK_ON_CYAN, Colors.BLACK, Colors.CYAN)
-            init_pair(BLACK_ON_MAGENTA, Colors.BLACK, Colors.MAGENTA)
-            init_pair(BLACK_ON_YELLOW, Colors.BLACK, Colors.YELLOW)
-            init_pair(DARK_GRAY_ON_DEFAULT, Colors.DARK_GRAY, -1)
-            init_pair(RED_ON_DEFAULT, Colors.RED, -1)
-        else:
-            curses.init_pair(WHITE_ON_BLACK, curses.COLOR_WHITE, curses.COLOR_BLACK)
-            curses.init_pair(BLACK_ON_WHITE, curses.COLOR_BLACK, curses.COLOR_WHITE)
-            curses.init_pair(BLACK_ON_RED, curses.COLOR_BLACK, curses.COLOR_RED)
-            curses.init_pair(BLACK_ON_GREEN, curses.COLOR_BLACK, curses.COLOR_GREEN)
-            curses.init_pair(BLACK_ON_BLUE, curses.COLOR_BLACK, curses.COLOR_BLUE)
-            curses.init_pair(BLACK_ON_CYAN, curses.COLOR_BLACK, curses.COLOR_CYAN)
-            curses.init_pair(BLACK_ON_MAGENTA, curses.COLOR_BLACK, curses.COLOR_MAGENTA)
-            curses.init_pair(BLACK_ON_YELLOW, curses.COLOR_BLACK, curses.COLOR_YELLOW)
+    if curses.has_colors() and curses.can_change_color():
+        Colors.init_all()
+        ColorPairs.init_all()

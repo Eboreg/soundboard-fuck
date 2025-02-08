@@ -1,11 +1,19 @@
-from pathlib import Path
 import re
 import string
-from typing import TypeVar
+from pathlib import Path
+from typing import Any, Mapping, Sized, TypeVar, cast
+
+from soundboard_fuck.constants import SOUND_EXTENSIONS
 from platformdirs import user_config_dir
 
 
 _Number = TypeVar("_Number", int, float)
+_T = TypeVar("_T")
+
+KILOBYTE = pow(2, 10)
+MEGABYTE = pow(2, 20)
+GIGABYTE = pow(2, 30)
+TERABYTE = pow(2, 40)
 
 
 def coerce_between(value: _Number, min_value: _Number, max_value: _Number) -> _Number:
@@ -106,3 +114,60 @@ def split_to_rows(text: str, width: int):
     if line:
         lines.append(line)
     return lines
+
+
+def pad_with_nulls(lst: list[_T], length: int) -> list[_T | None]:
+    ret = cast(list[_T | None], lst)
+
+    if len(ret) < length:
+        for _ in range(len(ret), length):
+            ret.append(None)
+
+    return ret
+
+
+def format_filesize(size: int):
+    if size < KILOBYTE:
+        return str(size)
+    if size < MEGABYTE:
+        return f"{(size / KILOBYTE):.2f}K"
+    if size < GIGABYTE:
+        return f"{(size / MEGABYTE):.2f}M"
+    if size < TERABYTE:
+        return f"{(size / GIGABYTE):.2f}G"
+    return f"{(size / TERABYTE):.2f}T"
+
+
+def step_list(lst: Sized, current_idx: int, steps: int, wrap: bool = True) -> int:
+    if not wrap:
+        if current_idx + steps < 0:
+            return 0
+        if current_idx + steps >= len(lst):
+            return len(lst) - 1
+
+    if abs(steps) > len(lst):
+        steps = steps % len(lst) if steps >= 0 else steps % (len(lst) * -1)
+    if current_idx + steps >= len(lst):
+        return steps - (len(lst) - current_idx)
+    if current_idx + steps < 0:
+        return len(lst) + steps
+    return current_idx + steps
+
+
+def step_dict(dct: Mapping[_T, Any], current_key: _T, steps: int, wrap: bool = True) -> _T:
+    keys = list(dct.keys())
+    current_idx = keys.index(current_key)
+    new_idx = step_list(keys, current_idx, steps, wrap)
+    return keys[new_idx]
+
+
+def list_directory_sounds(directory: Path, recursive: bool) -> list[Path]:
+    path_generator = directory.glob("*") if not recursive else directory.rglob("*")
+    return [p.absolute() for p in path_generator if p.is_file() and p.suffix.lower().strip(".") in SOUND_EXTENSIONS]
+
+
+def iterate_directory_sounds(directory: Path, recursive: bool):
+    path_generator = directory.glob("*") if not recursive else directory.rglob("*")
+    for path in path_generator:
+        if path.is_file() and path.suffix.lower().strip(".") in SOUND_EXTENSIONS:
+            yield path.absolute()

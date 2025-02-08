@@ -1,8 +1,12 @@
 from pathlib import Path
-from typing import TypedDict, TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from soundboard_fuck.db.sqlite.adapter import SqliteAdapter
-from soundboard_fuck.db.sqlite.sql_column import ForeignKeyAction, SqlColumn, SqlType
+from soundboard_fuck.db.sqlite.sql_column import (
+    ForeignKeyAction,
+    SqlColumn,
+    SqlType,
+)
 from soundboard_fuck.ui.colors import ColorScheme
 
 
@@ -22,11 +26,8 @@ class SoundColumns(TypedDict):
 
 class SoundAdapter(SqliteAdapter["Sound"]):
     table_name = "sounds"
-    columns = [
-        SqlColumn[int | None]("id", SqlType.INTEGER, primary_key=True, auto_increment=True),
-        SqlColumn[str]("name", SqlType.VARCHAR, not_null=True),
-        SqlColumn[Path]("path", SqlType.VARCHAR, Path, not_null=True),
-        SqlColumn[int](
+    column_dict: SoundColumns = {
+        "category_id": SqlColumn[int](
             "category_id",
             SqlType.INTEGER,
             not_null=True,
@@ -34,8 +35,7 @@ class SoundAdapter(SqliteAdapter["Sound"]):
             on_delete=ForeignKeyAction.RESTRICT,
             on_update=ForeignKeyAction.CASCADE,
         ),
-        SqlColumn[int | None]("duration_ms", SqlType.INTEGER, default=None),
-        SqlColumn[ColorScheme](
+        "colors": SqlColumn[ColorScheme](
             name="colors",
             sql_type=SqlType.VARCHAR,
             type_=ColorScheme,
@@ -44,9 +44,12 @@ class SoundAdapter(SqliteAdapter["Sound"]):
             is_derived=True,
             select_stmt="categories.colors",
         ),
-        SqlColumn[int]("play_count", SqlType.INTEGER, default=0, not_null=True),
-    ]
-    column_dict: SoundColumns = {c.name: c for c in columns}
+        "duration_ms": SqlColumn[int | None]("duration_ms", SqlType.INTEGER, default=None),
+        "id": SqlColumn[int | None]("id", SqlType.INTEGER, primary_key=True, auto_increment=True),
+        "name": SqlColumn[str]("name", SqlType.VARCHAR, not_null=True),
+        "path": SqlColumn[Path]("path", SqlType.VARCHAR, Path, not_null=True),
+        "play_count": SqlColumn[int]("play_count", SqlType.INTEGER, default=0, not_null=True),
+    }
 
     def _get_model_class(self):
         from soundboard_fuck.data.sound import Sound

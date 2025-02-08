@@ -35,3 +35,13 @@ class KeyPress:
             window.nodelay(False)
 
         return key
+
+    @classmethod
+    def get_non_blocking(cls, window: curses.window) -> "KeyPress | None":
+        window.nodelay(True)
+        try:
+            return cls.get(window)
+        except Exception:
+            return None
+        finally:
+            window.nodelay(False)

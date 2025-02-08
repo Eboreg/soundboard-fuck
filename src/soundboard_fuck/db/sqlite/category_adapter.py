@@ -1,4 +1,4 @@
-from typing import TypedDict, TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 from soundboard_fuck.db.sqlite.adapter import SqliteAdapter
 from soundboard_fuck.db.sqlite.sql_column import SqlColumn, SqlType
